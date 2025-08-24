@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  drone-simulation:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: drone-vision-sim
+    environment:
+      - AIRSIM_HOST=host.docker.internal
+      - AIRSIM_PORT=41451
+      - PYTHONPATH=/app/src
+    volumes:
+      - ../data:/app/data
+      - ../models:/app/models
+      - ../logs:/app/logs
+    ports:
+      - "8080:8080"
+    networks:
+      - drone-network
+    restart: unless-stopped
+
+  # Optional: Add a web interface service
+  web-interface:
+    image: nginx:alpine
+    container_name: drone-web-interface
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - drone-simulation
+    networks:
+      - drone-network
+    restart: unless-stopped
+
+networks:
+  drone-network:
+    driver: bridge

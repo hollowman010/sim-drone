@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  # Main drone simulation service
+  drone-simulation:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: drone-vision-sim-cloud
+    environment:
+      - AIRSIM_HOST=airsim-server
+      - AIRSIM_PORT=41451
+      - PYTHONPATH=/app/src
+      - GCP_DEPLOYMENT=true
+    volumes:
+      - ../data:/app/data
+      - ../models:/app/models
+      - ../logs:/app/logs
+      - ../config:/app/config
+    ports:
+      - "8080:8080"
+    networks:
+      - drone-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # AirSim server (if running in container)
+  airsim-server:
+    image: airsim/airsim:latest
+    container_name: airsim-server
+    environment:
+      - DISPLAY=:0
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ../settings.json:/root/Documents/AirSim/settings.json
+    ports:
+      - "41451:41451"
+    networks:
+      - drone-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Web interface for monitoring
+  web-interface:
+    image: nginx:alpine
+    container_name: drone-web-interface
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ../data:/usr/share/nginx/html/data
+    depends_on:
+      - drone-simulation
+    networks:
+      - drone-network
+    restart: unless-stopped
+
+  # Monitoring and logging
+  monitoring:
+    image: prom/prometheus:latest
+    container_name: drone-monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ../logs:/var/log/drone
+    networks:
+      - drone-network
+    restart: unless-stopped
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: drone-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - drone-network
+    restart: unless-stopped
+
+networks:
+  drone-network:
+    driver: bridge
+
+volumes:
+  grafana-storage:

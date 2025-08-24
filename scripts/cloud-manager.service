@@ -1,0 +1,16 @@
+[Unit]
+Description=Drone Simulation Cloud Manager
+After=network.target
+
+[Service]
+Type=simple
+User=medimonam
+WorkingDirectory=/home/medimonam/drone-vision
+ExecStart=/usr/bin/python3 /home/medimonam/drone-vision/scripts/cloud_management.py monitor
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
