@@ -1,0 +1,235 @@
+name: CI/CD Pipeline for Drone Simulation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual triggers
+
+env:
+  PROJECT_ID: drone-sim-project
+  INSTANCE_NAME: drone-sim-dev
+  ZONE: us-central1-a
+  REMOTE_USER: medimonam
+  REMOTE_DIR: /home/medimonam/drone-vision
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov black flake8 mypy
+        
+    - name: Run linting
+      run: |
+        echo "Running Black (code formatting check)..."
+        black --check --diff src/ tests/
+        
+        echo "Running Flake8 (style check)..."
+        flake8 src/ tests/ --max-line-length=88 --extend-ignore=E203,W503
+        
+        echo "Running MyPy (type checking)..."
+        mypy src/ --ignore-missing-imports
+        
+    - name: Run tests
+      run: |
+        pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Bandit security scan
+      run: |
+        pip install bandit
+        bandit -r src/ -f json -o bandit-report.json || true
+        
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-scan-results
+        path: bandit-report.json
+
+  build-and-test:
+    name: Build and Test Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Build Docker image
+      run: |
+        docker build -t drone-simulation:latest -f docker/Dockerfile .
+        
+    - name: Test Docker image
+      run: |
+        # Test that the image can start
+        docker run --rm drone-simulation:latest python -c "print('Docker image test passed')"
+
+  deploy-staging:
+    name: Deploy to Staging (GCP)
+    runs-on: ubuntu-latest
+    needs: [test, security-scan, build-and-test]
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Google Auth
+      id: auth
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        project_id: ${{ env.PROJECT_ID }}
+        
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      
+    - name: Deploy to staging instance
+      run: |
+        echo "Deploying to staging environment..."
+        
+        # Check if instance is running
+        INSTANCE_STATUS=$(gcloud compute instances describe $INSTANCE_NAME --zone=$ZONE --format="value(status)" || echo "NOT_FOUND")
+        
+        if [ "$INSTANCE_STATUS" != "RUNNING" ]; then
+          echo "Starting staging instance..."
+          gcloud compute instances start $INSTANCE_NAME --zone=$ZONE
+          sleep 30
+        fi
+        
+        # Get instance IP
+        INSTANCE_IP=$(gcloud compute instances describe $INSTANCE_NAME --zone=$ZONE --format="value(networkInterfaces[0].accessConfigs[0].natIP)")
+        echo "Staging instance IP: $INSTANCE_IP"
+        
+        # Copy files to instance
+        gcloud compute scp --recurse . $REMOTE_USER@$INSTANCE_NAME:$REMOTE_DIR --zone=$ZONE
+        
+        # Run deployment script on instance
+        gcloud compute ssh $REMOTE_USER@$INSTANCE_NAME --zone=$ZONE --command="
+          cd $REMOTE_DIR
+          chmod +x scripts/deploy_to_gcp.sh
+          ./scripts/deploy_to_gcp.sh
+        "
+        
+        echo "✅ Staging deployment complete!"
+
+  deploy-production:
+    name: Deploy to Production (GCP)
+    runs-on: ubuntu-latest
+    needs: [test, security-scan, build-and-test]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Google Auth
+      id: auth
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        project_id: ${{ env.PROJECT_ID }}
+        
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      
+    - name: Deploy to production instance
+      run: |
+        echo "Deploying to production environment..."
+        
+        # Check if instance is running
+        INSTANCE_STATUS=$(gcloud compute instances describe $INSTANCE_NAME --zone=$ZONE --format="value(status)" || echo "NOT_FOUND")
+        
+        if [ "$INSTANCE_STATUS" != "RUNNING" ]; then
+          echo "Starting production instance..."
+          gcloud compute instances start $INSTANCE_NAME --zone=$ZONE
+          sleep 30
+        fi
+        
+        # Get instance IP
+        INSTANCE_IP=$(gcloud compute instances describe $INSTANCE_NAME --zone=$ZONE --format="value(networkInterfaces[0].accessConfigs[0].natIP)")
+        echo "Production instance IP: $INSTANCE_IP"
+        
+        # Copy files to instance
+        gcloud compute scp --recurse . $REMOTE_USER@$INSTANCE_NAME:$REMOTE_DIR --zone=$ZONE
+        
+        # Run deployment script on instance
+        gcloud compute ssh $REMOTE_USER@$INSTANCE_NAME --zone=$ZONE --command="
+          cd $REMOTE_DIR
+          chmod +x scripts/deploy_to_gcp.sh
+          ./scripts/deploy_to_gcp.sh
+        "
+        
+        # Run smoke tests
+        echo "Running smoke tests..."
+        gcloud compute ssh $REMOTE_USER@$INSTANCE_NAME --zone=$ZONE --command="
+          cd $REMOTE_DIR
+          source venv/bin/activate
+          python -m pytest tests/test_basic.py -v
+        "
+        
+        echo "✅ Production deployment complete!"
+
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+    - name: Notify on success
+      if: needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success'
+      run: |
+        echo "🎉 Deployment successful!"
+        echo "Branch: ${{ github.ref }}"
+        echo "Commit: ${{ github.sha }}"
+        
+    - name: Notify on failure
+      if: needs.deploy-staging.result == 'failure' || needs.deploy-production.result == 'failure'
+      run: |
+        echo "❌ Deployment failed!"
+        echo "Branch: ${{ github.ref }}"
+        echo "Commit: ${{ github.sha }}"
+        exit 1
