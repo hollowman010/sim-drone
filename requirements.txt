@@ -1,7 +1,7 @@
 # Core dependencies (install first)
 wheel>=0.40.0
 numpy>=1.24.0
-msgpack-rpc-python>=1.0.0
+msgpack-rpc-python==0.4.1
 
 # Note: AirSim is installed separately in CI/CD to handle build dependencies
 # airsim>=1.8.1
