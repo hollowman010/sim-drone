@@ -1,9 +1,11 @@
+# Core dependencies (install first)
+numpy>=1.24.0
+
 # AirSim Python API
 airsim>=1.8.1
 
 # Computer Vision
 opencv-python>=4.8.0
-numpy>=1.24.0
 Pillow>=10.0.0
 
 # Machine Learning
