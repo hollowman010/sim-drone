@@ -41,7 +41,9 @@ jobs:
         python -m pip install --upgrade pip
         # Install numpy first (required by AirSim)
         pip install numpy
-        # Install other dependencies
+        # Install AirSim with explicit build dependencies
+        pip install --no-build-isolation airsim>=1.8.1
+        # Install remaining dependencies
         pip install -r requirements.txt
         pip install pytest pytest-cov black flake8 mypy
         
