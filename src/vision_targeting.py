@@ -6,7 +6,7 @@ Handles image processing, object detection, and visual analysis.
 import cv2
 import numpy as np
 import logging
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List
 from pathlib import Path
 
 
@@ -238,7 +238,8 @@ class VisionProcessor:
                         "bbox": [x, y, w, h],
                         "area": area,
                         "centroid": centroid.tolist(),
-                        "distance": "close",  # Could be refined with actual depth values
+                        "distance": "close",  # Could be refined with actual depth
+                        # values
                     }
                 )
 

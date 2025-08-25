@@ -2,16 +2,16 @@
 Basic tests for the Drone Vision AirSim project.
 """
 
-import unittest
 import sys
+import unittest
 from pathlib import Path
+
+from src.utils.config import get_default_config
+from src.utils.logger import DroneVisionLogger
 
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 sys.path.append(str(Path(__file__).parent.parent))
-
-from src.utils.config import get_default_config
-from src.utils.logger import DroneVisionLogger
 
 
 class TestConfiguration(unittest.TestCase):

@@ -5,7 +5,6 @@ Provides standardized logging across all modules.
 
 import logging
 import logging.handlers
-import os
 from pathlib import Path
 from typing import Optional
 import json

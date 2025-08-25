@@ -3,18 +3,18 @@
 Main entry point for the Drone Vision AirSim simulation project.
 """
 
-import sys
 import logging
+import sys
 from pathlib import Path
 
-# Add src to path for imports
-sys.path.append(str(Path(__file__).parent))
-
 from flight_control import DroneController
-from vision_targeting import VisionProcessor
 from mission_logic import MissionLogic
 from utils.config import load_config
 from utils.logger import setup_logging
+from vision_targeting import VisionProcessor
+
+# Add src to path for imports
+sys.path.append(str(Path(__file__).parent))
 
 
 def setup_logging_config():
