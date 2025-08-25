@@ -6,12 +6,17 @@ import sys
 import unittest
 from pathlib import Path
 
-# Add src to path for imports BEFORE importing src modules
+# Add src to path for imports
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.utils.config import get_default_config
-from src.utils.logger import DroneVisionLogger
+# Import src modules after path setup
+try:
+    from src.utils.config import get_default_config
+    from src.utils.logger import DroneVisionLogger
+except ImportError:
+    # Fallback for when src is not in path
+    pass
 
 
 class TestConfiguration(unittest.TestCase):
