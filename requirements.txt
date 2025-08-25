@@ -1,4 +1,5 @@
 # Core dependencies (install first)
+wheel>=0.40.0
 numpy>=1.24.0
 msgpack-rpc-python>=1.0.0
 

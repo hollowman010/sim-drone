@@ -39,8 +39,12 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        # Install wheel for building packages
+        pip install wheel
         # Install core dependencies first (required by AirSim)
         pip install numpy msgpack-rpc-python
+        # Try to work around AirSim's hardcoded msgpackrpc dependency
+        pip install msgpack-rpc-python
         # Install AirSim with explicit build dependencies
         pip install --no-build-isolation airsim>=1.8.1
         # Install remaining dependencies
