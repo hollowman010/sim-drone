@@ -101,7 +101,7 @@ class DroneVisionLogger:
             position: Drone position (x, y, z)
             target_info: Target information if applicable
         """
-        data = {"event": event}
+        data: dict = {"event": event}
         if position:
             data["position"] = position
         if target_info:

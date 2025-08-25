@@ -78,6 +78,8 @@ class DroneController:
 
         try:
             # Get drone state
+            if self.client is None:
+                raise RuntimeError("Client not initialized")
             state = self.client.getMultirotorState()
 
             # Get camera images
@@ -97,9 +99,11 @@ class DroneController:
                         response.height, response.width
                     )
                 else:
-                    images[f"image_{i}"] = np.frombuffer(
-                        response.image_data_uint8, dtype=np.uint8
-                    ).reshape(response.height, response.width, 3)
+                    images[f"image_{i}"] = (
+                        np.frombuffer(response.image_data_uint8, dtype=np.uint8)
+                        .reshape(response.height, response.width, 3)
+                        .astype(np.uint8)
+                    )
 
             return {
                 "position": state.kinematics_estimated.position,
@@ -124,6 +128,10 @@ class DroneController:
             return
 
         try:
+            if self.client is None:
+                self.logger.error("Client not initialized")
+                return
+
             # Handle different command types
             if commands.get("action") == "move_to_position":
                 pos = commands["parameters"]
@@ -155,6 +163,8 @@ class DroneController:
             return None
 
         try:
+            if self.client is None:
+                return None
             state = self.client.getMultirotorState()
             return state.kinematics_estimated.position
         except Exception as e:

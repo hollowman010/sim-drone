@@ -95,14 +95,14 @@ class VisionProcessor:
         Returns:
             Dictionary containing detection results
         """
-        results = {"objects_detected": [], "image_processed": True}
+        results: Dict[str, Any] = {"objects_detected": [], "image_processed": True}
 
         try:
             # Convert to BGR for OpenCV
             if len(image.shape) == 3 and image.shape[2] == 3:
-                bgr_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                bgr_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)  # type: ignore
             else:
-                bgr_image = image
+                bgr_image = image  # type: ignore
 
             # Basic object detection using contours
             gray = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
@@ -179,7 +179,7 @@ class VisionProcessor:
         Returns:
             Dictionary containing segmentation results
         """
-        results = {"landing_zones": [], "scene_analysis": {}}
+        results: Dict[str, Any] = {"landing_zones": [], "scene_analysis": {}}
 
         try:
             # Analyze segmentation for different object types
@@ -220,7 +220,7 @@ class VisionProcessor:
         Returns:
             List of obstacle regions with properties
         """
-        regions = []
+        regions: List[Dict[str, Any]] = []
 
         try:
             # Find connected components
@@ -230,8 +230,8 @@ class VisionProcessor:
 
             # Process each component
             for i in range(1, num_labels):  # Skip background
-                x, y, w, h, area = stats[i]
-                centroid = centroids[i]
+                x, y, w, h, area = stats[i]  # type: ignore
+                centroid = centroids[i]  # type: ignore
 
                 regions.append(
                     {

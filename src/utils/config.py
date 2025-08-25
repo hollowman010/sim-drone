@@ -4,10 +4,10 @@ Configuration settings for the Drone Vision AirSim project.
 
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 
-def load_config(config_path: str = None) -> Dict[str, Any]:
+def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     """Load configuration from file or return defaults.
 
     Args:

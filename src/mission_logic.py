@@ -60,17 +60,17 @@ class MissionLogic:
 
         # Mission state
         self.current_state = MissionState.IDLE
-        self.mission_start_time = None
+        self.mission_start_time: Optional[float] = None
         self.target_detected = False
         self.target_info: Optional[TargetInfo] = None
 
         # Patrol configuration
-        self.patrol_waypoints = []
+        self.patrol_waypoints: List[Tuple[float, float, float]] = []
         self.current_patrol_index = 0
         self.patrol_completed = False
 
         # Target tracking
-        self.tracking_start_time = None
+        self.tracking_start_time: Optional[float] = None
         self.max_tracking_duration = config.get(
             "max_tracking_duration", 300
         )  # 5 minutes
