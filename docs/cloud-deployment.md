@@ -22,7 +22,7 @@ gcloud auth login
 gcloud auth application-default login
 
 # Set project
-gcloud config set project YOUR_PROJECT_ID
+gcloud config set project drone-sim-project
 ```
 
 ### 2. Enable APIs
@@ -45,7 +45,7 @@ gcloud services enable cloudresourcemanager.googleapis.com
     "instance_name": "airsim-gpu",
     "instance_type": "n1-standard-4",
     "zone": "us-central1-a",
-    "project_id": "YOUR_PROJECT_ID",
+    "project_id": "drone-sim-project",
     "gpu_type": "nvidia-tesla-t4",
     "gpu_count": 1
   },
@@ -62,10 +62,10 @@ gcloud services enable cloudresourcemanager.googleapis.com
 ```json
 {
   "compute": {
-    "instance_name": "drone-cpu",
+    "instance_name": "drone-sim-dev",
     "instance_type": "n1-standard-4",
     "zone": "us-central1-a",
-    "project_id": "YOUR_PROJECT_ID"
+    "project_id": "drone-sim-project"
   },
   "cost_optimization": {
     "use_spot_instances": true,
@@ -80,7 +80,7 @@ gcloud services enable cloudresourcemanager.googleapis.com
 ```json
 {
   "airsim": {
-    "host": "YOUR_GPU_VM_IP",
+    "host": "YOUR_GPU_VM_EXTERNAL_IP",
     "port": 41451,
     "timeout": 10.0
   }
@@ -169,7 +169,7 @@ python src/main.py config/remote_airsim.json
 ### 3. Cloud Processing
 ```bash
 # SSH to CPU VM for processing
-gcloud compute ssh drone-cpu --zone=us-central1-a
+gcloud compute ssh drone-sim-dev --zone=us-central1-a
 
 # Run processing tasks
 python src/main.py config/cpu_vm.json
@@ -211,7 +211,7 @@ python scripts/cpu-vm-manager.py status
 
 # Get VM details
 gcloud compute instances describe airsim-gpu --zone=us-central1-a
-gcloud compute instances describe drone-cpu --zone=us-central1-a
+gcloud compute instances describe drone-sim-dev --zone=us-central1-a
 
 # View logs
 gcloud compute ssh airsim-gpu --zone=us-central1-a --command="sudo journalctl -f"

@@ -1,7 +1,7 @@
 # 🎉 AirSim Setup Complete!
 
 ## Project Overview
-Your streamlined Drone Vision AirSim project is now ready for development and testing.
+Your streamlined Drone Vision AirSim project is now ready for development and testing with cloud deployment capabilities.
 
 ## What's Included
 
@@ -10,12 +10,14 @@ Your streamlined Drone Vision AirSim project is now ready for development and te
 - **Computer Vision**: Basic contour-based object detection
 - **Autonomous Navigation**: Simple waypoint-based patrol system
 - **Clean Architecture**: Minimal, maintainable codebase
+- **Cloud Deployment**: GCP integration with cost optimization
 
 ### ✅ Key Features
 - **Simplified State Management**: Removed complex state machines
 - **Efficient Vision Processing**: Single RGB image processing
 - **Streamlined Configuration**: Essential settings only
 - **Minimal Dependencies**: 8 essential packages
+- **Cost Optimization**: Spot instances and auto-shutdown
 
 ## Project Structure
 ```
@@ -28,11 +30,20 @@ src/
     └── config.py        # Configuration management
 
 config/
-└── settings.json        # Configuration file
+├── settings.json        # Local configuration
+├── gpu_vm.json         # GPU VM configuration
+├── cpu_vm.json         # CPU VM configuration
+└── remote_airsim.json  # Remote AirSim configuration
+
+scripts/
+├── gpu-vm-manager.py   # GPU VM management
+├── cpu-vm-manager.py   # CPU VM management
+└── cost-optimizer.py   # Cost optimization
 
 docs/
 ├── quick-start.md       # Quick setup guide
 ├── airsim-setup-guide.md # AirSim installation
+├── cloud-deployment.md  # Cloud deployment guide
 └── final-setup-summary.md # This file
 
 requirements.txt         # Python dependencies
@@ -51,7 +62,11 @@ pip install -r requirements.txt
 
 ### 3. Run Simulation
 ```bash
+# Local development
 python src/main.py
+
+# Remote AirSim (after getting GPU VM IP)
+python src/main.py config/remote_airsim.json
 ```
 
 ## Configuration Options
@@ -87,6 +102,33 @@ python src/main.py
 }
 ```
 
+## Cloud Deployment
+
+### VM Configuration
+- **GPU VM**: `airsim-gpu` (n1-standard-4 + T4 GPU)
+- **CPU VM**: `drone-sim-dev` (n1-standard-4)
+- **Project**: `drone-sim-project`
+- **Zone**: `us-central1-a`
+
+### Cost Optimization
+```bash
+# Get cost summary
+python scripts/cost-optimizer.py cost --hours 24
+
+# Optimize for AirSim workload
+python scripts/cost-optimizer.py airsim
+
+# Optimize for processing only
+python scripts/cost-optimizer.py processing
+```
+
+### Cost Estimates
+- **GPU VM (Spot)**: ~$0.16/hour
+- **CPU VM (Spot)**: ~$0.06/hour
+- **Total (Both)**: ~$0.22/hour
+- **Daily Cost**: ~$5.28
+- **Monthly Cost**: ~$158
+
 ## Performance Optimizations
 
 ### Code Efficiency
@@ -109,6 +151,12 @@ python src/main.py
 3. Commit and push to GitHub
 4. Run automated tests
 
+### Cloud Development
+1. Start appropriate VMs based on workload
+2. Deploy code to cloud
+3. Run simulations remotely
+4. Monitor costs and performance
+
 ### Testing
 ```bash
 # Run tests
@@ -125,39 +173,45 @@ flake8 src/
 1. **AirSim Connection**: Check host/port settings
 2. **Performance**: Reduce image resolution
 3. **Dependencies**: Update with `pip install -r requirements.txt`
+4. **Cloud Authentication**: Run `gcloud auth application-default login`
 
 ### Performance Tips
 - Use lower resolution images for faster processing
 - Adjust waypoint tolerance based on needs
 - Monitor system resources during simulation
+- Use spot instances for cost savings
 
 ## Next Steps
 
 ### Immediate Actions
-1. Test the basic simulation
-2. Customize waypoints for your use case
-3. Adjust vision parameters as needed
+1. Test the basic simulation locally
+2. Get GPU VM external IP address
+3. Update remote AirSim configuration
+4. Test cloud deployment
 
 ### Future Enhancements
 - Add more sophisticated object detection
 - Implement advanced navigation algorithms
 - Integrate additional sensors
 - Add data collection and analysis
+- Set up automated CI/CD pipelines
 
 ## Support Resources
 
 ### Documentation
 - [Quick Start Guide](quick-start.md)
 - [AirSim Setup Guide](airsim-setup-guide.md)
+- [Cloud Deployment Guide](cloud-deployment.md)
 - [Main README](../README.md)
 
 ### External Resources
 - [AirSim Documentation](https://microsoft.github.io/AirSim/)
 - [OpenCV Documentation](https://docs.opencv.org/)
+- [Google Cloud Documentation](https://cloud.google.com/docs)
 - [Python Documentation](https://docs.python.org/)
 
 ## 🚀 Ready to Fly!
 
-Your streamlined Drone Vision AirSim project is now ready for development. The codebase is efficient, maintainable, and focused on core UAV simulation functionality.
+Your streamlined Drone Vision AirSim project is now ready for development with both local and cloud capabilities. The codebase is efficient, maintainable, and optimized for cost-effective cloud deployment.
 
 Happy coding! 🚁✨
