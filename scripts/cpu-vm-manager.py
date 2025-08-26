@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """
-GPU VM Manager for cost-optimized AirSim instances.
-Streamlined management of GPU VMs for AirSim simulations.
+CPU VM Manager for cost-optimized processing workloads.
+Manages CPU VMs for data processing, analysis, and non-AirSim tasks.
 """
 
 import argparse
 import json
 import logging
-import subprocess
 import sys
-from pathlib import Path
 from typing import Dict, Any, Optional
 
 import google.auth
@@ -17,14 +15,14 @@ from google.cloud import compute_v1
 from google.auth.exceptions import DefaultCredentialsError
 
 
-class GPUVMManager:
-    """Manages GPU VMs for AirSim simulations with cost optimization."""
+class CPUVMManager:
+    """Manages CPU VMs for processing workloads with cost optimization."""
 
-    def __init__(self, config_path: str = "config/gpu_vm.json"):
-        """Initialize the GPU VM manager.
+    def __init__(self, config_path: str = "config/cpu_vm.json"):
+        """Initialize the CPU VM manager.
 
         Args:
-            config_path: Path to GPU VM configuration file
+            config_path: Path to CPU VM configuration file
         """
         self.config = self._load_config(config_path)
         self.logger = self._setup_logging()
@@ -32,13 +30,12 @@ class GPUVMManager:
         try:
             self.credentials, self.project_id = google.auth.default()
             self.compute_client = compute_v1.InstancesClient()
-            self.zones_client = compute_v1.ZonesClient()
         except DefaultCredentialsError:
             self.logger.error("Google Cloud credentials not found. Run 'gcloud auth application-default login'")
             sys.exit(1)
 
     def _load_config(self, config_path: str) -> Dict[str, Any]:
-        """Load GPU VM configuration."""
+        """Load CPU VM configuration."""
         try:
             with open(config_path, 'r') as f:
                 return json.load(f)
@@ -46,26 +43,24 @@ class GPUVMManager:
             return self._get_default_config()
 
     def _get_default_config(self) -> Dict[str, Any]:
-        """Get default GPU VM configuration."""
+        """Get default CPU VM configuration."""
         return {
             "compute": {
-                "instance_name": "airsim-gpu",
+                "instance_name": "drone-cpu",
                 "instance_type": "n1-standard-4",
                 "zone": "us-central1-a",
-                "project_id": "your-project-id",
-                "gpu_type": "nvidia-tesla-t4",
-                "gpu_count": 1
+                "project_id": "your-project-id"
             },
             "cost_optimization": {
                 "use_spot_instances": True,
                 "auto_shutdown": True,
-                "max_runtime_hours": 4,
-                "budget_limit": 50.0
+                "max_runtime_hours": 8,
+                "budget_limit": 20.0
             },
-            "airsim": {
-                "image_family": "debian-11",
-                "image_project": "debian-cloud",
-                "disk_size_gb": 50
+            "processing": {
+                "data_analysis": True,
+                "model_training": False,
+                "batch_processing": True
             }
         }
 
@@ -77,8 +72,8 @@ class GPUVMManager:
         )
         return logging.getLogger(__name__)
 
-    def create_gpu_vm(self) -> bool:
-        """Create a GPU VM for AirSim."""
+    def create_cpu_vm(self) -> bool:
+        """Create a CPU VM for processing workloads."""
         try:
             config = self.config["compute"]
             
@@ -97,18 +92,18 @@ class GPUVMManager:
                 instance_resource=instance_config
             )
             
-            self.logger.info(f"Creating GPU VM: {config['instance_name']}")
+            self.logger.info(f"Creating CPU VM: {config['instance_name']}")
             self._wait_for_operation(operation, config["project_id"], config["zone"])
             
-            self.logger.info("GPU VM created successfully")
+            self.logger.info("CPU VM created successfully")
             return True
 
         except Exception as e:
-            self.logger.error(f"Failed to create GPU VM: {e}")
+            self.logger.error(f"Failed to create CPU VM: {e}")
             return False
 
-    def start_gpu_vm(self) -> bool:
-        """Start the GPU VM."""
+    def start_cpu_vm(self) -> bool:
+        """Start the CPU VM."""
         try:
             config = self.config["compute"]
             
@@ -122,18 +117,18 @@ class GPUVMManager:
                 instance=config["instance_name"]
             )
             
-            self.logger.info(f"Starting GPU VM: {config['instance_name']}")
+            self.logger.info(f"Starting CPU VM: {config['instance_name']}")
             self._wait_for_operation(operation, config["project_id"], config["zone"])
             
-            self.logger.info("GPU VM started successfully")
+            self.logger.info("CPU VM started successfully")
             return True
 
         except Exception as e:
-            self.logger.error(f"Failed to start GPU VM: {e}")
+            self.logger.error(f"Failed to start CPU VM: {e}")
             return False
 
-    def stop_gpu_vm(self) -> bool:
-        """Stop the GPU VM to save costs."""
+    def stop_cpu_vm(self) -> bool:
+        """Stop the CPU VM to save costs."""
         try:
             config = self.config["compute"]
             
@@ -143,18 +138,18 @@ class GPUVMManager:
                 instance=config["instance_name"]
             )
             
-            self.logger.info(f"Stopping GPU VM: {config['instance_name']}")
+            self.logger.info(f"Stopping CPU VM: {config['instance_name']}")
             self._wait_for_operation(operation, config["project_id"], config["zone"])
             
-            self.logger.info("GPU VM stopped successfully")
+            self.logger.info("CPU VM stopped successfully")
             return True
 
         except Exception as e:
-            self.logger.error(f"Failed to stop GPU VM: {e}")
+            self.logger.error(f"Failed to stop CPU VM: {e}")
             return False
 
     def get_vm_status(self) -> Optional[str]:
-        """Get the current status of the GPU VM."""
+        """Get the current status of the CPU VM."""
         try:
             config = self.config["compute"]
             
@@ -171,7 +166,7 @@ class GPUVMManager:
             return None
 
     def get_vm_ip(self) -> Optional[str]:
-        """Get the external IP address of the GPU VM."""
+        """Get the external IP address of the CPU VM."""
         try:
             config = self.config["compute"]
             
@@ -192,17 +187,15 @@ class GPUVMManager:
             return None
 
     def estimate_cost(self, hours: int = 24) -> float:
-        """Estimate the cost for running the GPU VM."""
+        """Estimate the cost for running the CPU VM."""
         try:
-            # Rough cost estimation (you can make this more accurate)
-            gpu_cost_per_hour = 0.35  # T4 GPU cost
+            # CPU VM cost estimation
             cpu_cost_per_hour = 0.19  # n1-standard-4 cost
-            total_per_hour = gpu_cost_per_hour + cpu_cost_per_hour
             
             if self.config["cost_optimization"]["use_spot_instances"]:
-                total_per_hour *= 0.3  # 70% discount for spot instances
+                cpu_cost_per_hour *= 0.3  # 70% discount for spot instances
             
-            return total_per_hour * hours
+            return cpu_cost_per_hour * hours
             
         except Exception as e:
             self.logger.error(f"Failed to estimate cost: {e}")
@@ -222,9 +215,8 @@ class GPUVMManager:
             return False
 
     def _create_instance_config(self):
-        """Create instance configuration for GPU VM."""
+        """Create instance configuration for CPU VM."""
         config = self.config["compute"]
-        airsim_config = self.config["airsim"]
         
         # Create the instance resource
         instance = compute_v1.Instance()
@@ -237,8 +229,8 @@ class GPUVMManager:
         disk.boot = True
         disk.device_name = "boot-disk"
         disk.initialize_params = compute_v1.AttachedDiskInitializeParams()
-        disk.initialize_params.disk_size_gb = airsim_config["disk_size_gb"]
-        disk.initialize_params.source_image = f"projects/{airsim_config['image_project']}/global/images/family/{airsim_config['image_family']}"
+        disk.initialize_params.disk_size_gb = 20
+        disk.initialize_params.source_image = "projects/debian-cloud/global/images/family/debian-11"
         instance.disks = [disk]
         
         # Configure network
@@ -248,14 +240,6 @@ class GPUVMManager:
         network_interface.access_configs[0].name = "external-nat"
         network_interface.access_configs[0].type_ = "ONE_TO_ONE_NAT"
         instance.network_interfaces = [network_interface]
-        
-        # Configure GPU
-        if config.get("gpu_type") and config.get("gpu_count"):
-            accelerator = compute_v1.AcceleratorConfig()
-            accelerator.accelerator_count = config["gpu_count"]
-            accelerator.accelerator_type = f"zones/{config['zone']}/acceleratorTypes/{config['gpu_type']}"
-            
-            instance.guest_accelerators = [accelerator]
         
         # Configure scheduling (for spot instances)
         if self.config["cost_optimization"]["use_spot_instances"]:
@@ -276,24 +260,24 @@ class GPUVMManager:
 
 
 def main():
-    """Main function for GPU VM management."""
-    parser = argparse.ArgumentParser(description="Manage GPU VMs for AirSim")
+    """Main function for CPU VM management."""
+    parser = argparse.ArgumentParser(description="Manage CPU VMs for processing workloads")
     parser.add_argument("action", choices=["create", "start", "stop", "status", "ip", "cost"])
-    parser.add_argument("--config", default="config/gpu_vm.json", help="Configuration file path")
+    parser.add_argument("--config", default="config/cpu_vm.json", help="Configuration file path")
     parser.add_argument("--hours", type=int, default=24, help="Hours for cost estimation")
     
     args = parser.parse_args()
     
-    manager = GPUVMManager(args.config)
+    manager = CPUVMManager(args.config)
     
     if args.action == "create":
-        success = manager.create_gpu_vm()
+        success = manager.create_cpu_vm()
         sys.exit(0 if success else 1)
     elif args.action == "start":
-        success = manager.start_gpu_vm()
+        success = manager.start_cpu_vm()
         sys.exit(0 if success else 1)
     elif args.action == "stop":
-        success = manager.stop_gpu_vm()
+        success = manager.stop_cpu_vm()
         sys.exit(0 if success else 1)
     elif args.action == "status":
         status = manager.get_vm_status()

@@ -9,6 +9,10 @@ msgpack-rpc-python==0.4.1
 # Computer Vision (essential only)
 opencv-python>=4.8.0
 
+# Google Cloud Platform
+google-auth>=2.17.0
+google-cloud-compute>=1.12.0
+
 # Utilities
 requests>=2.31.0
 pyyaml>=6.0
