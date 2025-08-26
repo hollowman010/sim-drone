@@ -1,5 +1,6 @@
 """
 Configuration settings for the Drone Vision AirSim project.
+Streamlined configuration management.
 """
 
 import json
@@ -39,42 +40,35 @@ def get_default_config() -> Dict[str, Any]:
     """
     return {
         # AirSim connection settings
-        "airsim": {"host": "127.0.0.1", "port": 41451, "timeout": 10.0},
+        "airsim": {
+            "host": "127.0.0.1", 
+            "port": 41451, 
+            "timeout": 10.0
+        },
+        
         # Drone control settings
         "drone": {
             "max_speed": 10.0,
             "takeoff_height": 5.0,
             "safety_distance": 5.0,
-            "emergency_landing_height": 2.0,
         },
+        
         # Vision processing settings
         "vision": {
             "min_object_area": 100,
-            "obstacle_threshold": 0.3,
-            "min_landing_area": 1000,
-            "detection_model_path": None,
-            "segmentation_model_path": None,
         },
-        # Navigation settings
-        "navigation": {
-            "obstacle_avoidance": True,
-            "safety_distance": 5.0,
-            "max_speed": 10.0,
+        
+        # Mission settings
+        "mission": {
+            "max_mission_duration": 1800,  # 30 minutes
+            "target_detection_threshold": 0.7,
             "waypoint_tolerance": 2.0,
         },
+        
         # Logging settings
         "logging": {
             "level": "INFO",
             "file": "drone_vision.log",
-            "max_size": "10MB",
-            "backup_count": 5,
-        },
-        # Data collection settings
-        "data_collection": {
-            "enabled": True,
-            "save_images": True,
-            "save_sensor_data": True,
-            "output_dir": "data/collected",
         },
     }
 
@@ -97,28 +91,3 @@ def save_config(config: Dict[str, Any], config_path: str = "config/settings.json
 
     except Exception as e:
         print(f"Error saving configuration: {e}")
-
-
-def update_config(updates: Dict[str, Any], config_path: str = "config/settings.json"):
-    """Update configuration with new values.
-
-    Args:
-        updates: Dictionary containing configuration updates
-        config_path: Path to configuration file
-    """
-    config = load_config(config_path)
-
-    # Recursively update nested dictionaries
-    def update_nested(base_dict, update_dict):
-        for key, value in update_dict.items():
-            if (
-                key in base_dict
-                and isinstance(base_dict[key], dict)
-                and isinstance(value, dict)
-            ):
-                update_nested(base_dict[key], value)
-            else:
-                base_dict[key] = value
-
-    update_nested(config, updates)
-    save_config(config, config_path)

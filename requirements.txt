@@ -1,4 +1,4 @@
-# Core dependencies (install first)
+# Core dependencies
 wheel>=0.40.0
 numpy>=1.24.0
 msgpack-rpc-python==0.4.1
@@ -6,30 +6,16 @@ msgpack-rpc-python==0.4.1
 # Note: AirSim is installed separately in CI/CD to handle build dependencies
 # airsim>=1.8.1
 
-# Computer Vision
+# Computer Vision (essential only)
 opencv-python>=4.8.0
-Pillow>=10.0.0
-
-# Machine Learning
-tensorflow>=2.13.0
-torch>=2.0.0
-torchvision>=0.15.0
-
-# Data Processing
-pandas>=2.0.0
-matplotlib>=3.7.0
-seaborn>=0.12.0
 
 # Utilities
 requests>=2.31.0
 pyyaml>=6.0
-python-dotenv>=1.0.0
 
 # Testing
 pytest>=7.4.0
-pytest-cov>=4.1.0
 
-# Development
+# Development (optional)
 black>=23.0.0
 flake8>=6.0.0
-mypy>=1.5.0

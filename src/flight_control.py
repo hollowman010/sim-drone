@@ -1,6 +1,6 @@
 """
 Drone Controller module for AirSim integration.
-Handles drone control, sensor data collection, and flight commands.
+Streamlined and efficient drone control implementation.
 """
 
 import airsim
@@ -78,32 +78,20 @@ class DroneController:
 
         try:
             # Get drone state
-            if self.client is None:
-                raise RuntimeError("Client not initialized")
             state = self.client.getMultirotorState()
 
-            # Get camera images
-            responses = self.client.simGetImages(
-                [
-                    airsim.ImageRequest("0", airsim.ImageType.Scene),
-                    airsim.ImageRequest("1", airsim.ImageType.DepthVis),
-                    airsim.ImageRequest("2", airsim.ImageType.Segmentation),
-                ]
-            )
+            # Get camera images (only RGB for efficiency)
+            responses = self.client.simGetImages([
+                airsim.ImageRequest("0", airsim.ImageType.Scene)
+            ])
 
-            # Process images
+            # Process RGB image
             images = {}
-            for i, response in enumerate(responses):
-                if response.pixels_as_float:
-                    images[f"image_{i}"] = np.array(response.image_data_float).reshape(
-                        response.height, response.width
-                    )
-                else:
-                    images[f"image_{i}"] = (
-                        np.frombuffer(response.image_data_uint8, dtype=np.uint8)
-                        .reshape(response.height, response.width, 3)
-                        .astype(np.uint8)
-                    )
+            if responses and responses[0].image_data_uint8:
+                image_data = np.frombuffer(
+                    responses[0].image_data_uint8, dtype=np.uint8
+                ).reshape(responses[0].height, responses[0].width, 3)
+                images["rgb"] = image_data
 
             return {
                 "position": state.kinematics_estimated.position,
@@ -128,30 +116,26 @@ class DroneController:
             return
 
         try:
-            if self.client is None:
-                self.logger.error("Client not initialized")
-                return
+            action = commands.get("action")
+            
+            if action == "move_to_position":
+                pos = commands["position"]
+                speed = commands.get("speed", 5.0)
+                self.client.moveToPositionAsync(pos[0], pos[1], pos[2], speed)
 
-            # Handle different command types
-            if commands.get("action") == "move_to_position":
-                pos = commands["parameters"]
-                self.client.moveToPositionAsync(
-                    pos["x"], pos["y"], pos["z"], pos["speed"]
-                )
-
-            elif commands.get("action") == "move_by_velocity":
+            elif action == "move_by_velocity":
                 vel = commands["parameters"]
                 self.client.moveByVelocityAsync(
                     vel["vx"], vel["vy"], vel["vz"], vel["duration"]
                 )
 
-            elif commands.get("action") == "hover":
+            elif action == "hover":
                 self.client.hoverAsync()
 
-            elif commands.get("action") == "takeoff":
+            elif action == "takeoff":
                 self.takeoff()
 
-            elif commands.get("action") == "land":
+            elif action == "land":
                 self.land()
 
         except Exception as e:
@@ -163,8 +147,6 @@ class DroneController:
             return None
 
         try:
-            if self.client is None:
-                return None
             state = self.client.getMultirotorState()
             return state.kinematics_estimated.position
         except Exception as e:

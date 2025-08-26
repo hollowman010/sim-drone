@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Main entry point for the Drone Vision AirSim simulation project.
+Streamlined and efficient implementation.
 """
 
 import logging
@@ -9,28 +10,28 @@ from pathlib import Path
 
 from flight_control import DroneController
 from mission_logic import MissionLogic
-from utils.config import load_config
-from utils.logger import setup_logging
 from vision_targeting import VisionProcessor
+from utils.config import load_config
 
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent))
 
 
-def setup_logging_config():
-    """Setup logging configuration."""
+def setup_logging():
+    """Setup simple logging configuration."""
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[logging.FileHandler("drone_vision.log"), logging.StreamHandler()],
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler("drone_vision.log"),
+            logging.StreamHandler()
+        ],
     )
 
 
 def main():
     """Main application function."""
-    import sys
-    
-    setup_logging_config()
+    setup_logging()
     logger = logging.getLogger(__name__)
 
     try:
@@ -41,9 +42,6 @@ def main():
         config = load_config(config_path)
         logger.info("Configuration loaded successfully")
 
-        # Setup logging
-        drone_logger = setup_logging(config)
-
         # Initialize components
         drone_controller = DroneController(config)
         vision_processor = VisionProcessor(config)
@@ -51,9 +49,8 @@ def main():
 
         logger.info("All components initialized")
 
-        # Main simulation loop
-        logger.info("Starting simulation loop")
-        run_simulation(drone_controller, vision_processor, mission_logic, drone_logger)
+        # Run simulation
+        run_simulation(drone_controller, vision_processor, mission_logic, logger)
 
     except KeyboardInterrupt:
         logger.info("Simulation interrupted by user")
@@ -64,27 +61,25 @@ def main():
         logger.info("Shutting down Drone Vision system")
 
 
-def run_simulation(drone_controller, vision_processor, mission_logic, drone_logger):
+def run_simulation(drone_controller, vision_processor, mission_logic, logger):
     """Run the main simulation loop."""
-    logger = logging.getLogger(__name__)
-
     try:
         # Connect to AirSim
         drone_controller.connect()
         logger.info("Connected to AirSim")
 
-        # Define patrol waypoints (example)
+        # Define patrol waypoints
         patrol_waypoints = [
-            (0, 0, 20),  # Start position
-            (50, 0, 20),  # Forward
+            (0, 0, 20),    # Start position
+            (50, 0, 20),   # Forward
             (50, 50, 20),  # Right
-            (0, 50, 20),  # Back
-            (0, 0, 20),  # Return to start
+            (0, 50, 20),   # Back
+            (0, 0, 20),    # Return to start
         ]
 
         # Start mission
         mission_logic.start_mission(patrol_waypoints)
-        drone_logger.log_mission_event("mission_started", patrol_waypoints[0])
+        logger.info("Mission started")
 
         # Take off
         drone_controller.takeoff()
@@ -94,40 +89,23 @@ def run_simulation(drone_controller, vision_processor, mission_logic, drone_logg
         while True:
             # Get sensor data
             sensor_data = drone_controller.get_sensor_data()
-            drone_logger.log_sensor_data(
-                "drone_state",
-                {
-                    "position": str(sensor_data.get("position", "unknown")),
-                    "velocity": str(sensor_data.get("velocity", "unknown")),
-                },
-            )
-
+            
             # Process vision data
             vision_results = vision_processor.process(sensor_data)
-            drone_logger.log_vision_result(
-                vision_results.get("objects_detected", []),
-                vision_results.get("obstacles", []),
-                vision_results.get("path_clearance", True),
-            )
-
-            # Get current position for mission logic
+            
+            # Get current position
             current_position = drone_controller.get_position()
-            if current_position:
-                position_tuple = (
-                    current_position.x_val,
-                    current_position.y_val,
-                    current_position.z_val,
-                )
-            else:
-                position_tuple = (0, 0, 0)
+            position_tuple = (
+                current_position.x_val,
+                current_position.y_val,
+                current_position.z_val,
+            ) if current_position else (0, 0, 0)
 
-            # Update mission logic
+            # Update mission logic and execute commands
             mission_commands = mission_logic.update(vision_results, position_tuple)
-
-            # Execute mission commands
             drone_controller.execute_commands(mission_commands)
 
-            # Log mission status
+            # Check mission completion
             mission_status = mission_logic.get_mission_status()
             if mission_status["state"] == "completed":
                 logger.info("Mission completed successfully")
