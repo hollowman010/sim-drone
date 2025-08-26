@@ -28,6 +28,8 @@ def setup_logging_config():
 
 def main():
     """Main application function."""
+    import sys
+    
     setup_logging_config()
     logger = logging.getLogger(__name__)
 
@@ -35,7 +37,8 @@ def main():
         logger.info("Starting Drone Vision AirSim Simulation")
 
         # Load configuration
-        config = load_config()
+        config_path = sys.argv[1] if len(sys.argv) > 1 else None
+        config = load_config(config_path)
         logger.info("Configuration loaded successfully")
 
         # Setup logging
