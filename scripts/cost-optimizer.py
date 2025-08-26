@@ -14,10 +14,28 @@ from typing import Dict, Any, List
 
 # Add scripts directory to path for imports
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
+sys.path.append(os.path.dirname(current_dir))  # Add parent directory
 
-from gpu_vm_manager import GPUVMManager
-from cpu_vm_manager import CPUVMManager
+try:
+    from gpu_vm_manager import GPUVMManager
+    from cpu_vm_manager import CPUVMManager
+except ImportError:
+    # Try importing from scripts directory with correct filenames
+    import importlib.util
+    
+    # Load gpu-vm-manager.py
+    gpu_spec = importlib.util.spec_from_file_location("gpu_vm_manager", os.path.join(current_dir, "gpu-vm-manager.py"))
+    gpu_module = importlib.util.module_from_spec(gpu_spec)
+    gpu_spec.loader.exec_module(gpu_module)
+    GPUVMManager = gpu_module.GPUVMManager
+    
+    # Load cpu-vm-manager.py
+    cpu_spec = importlib.util.spec_from_file_location("cpu_vm_manager", os.path.join(current_dir, "cpu-vm-manager.py"))
+    cpu_module = importlib.util.module_from_spec(cpu_spec)
+    cpu_spec.loader.exec_module(cpu_module)
+    CPUVMManager = cpu_module.CPUVMManager
 
 
 class CostOptimizer:

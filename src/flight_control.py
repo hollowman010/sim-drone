@@ -3,10 +3,110 @@ Drone Controller module for AirSim integration.
 Streamlined and efficient drone control implementation.
 """
 
-import airsim
 import logging
 from typing import Dict, Any, Optional
 import numpy as np
+
+# Try to import AirSim, fallback to mock if not available
+try:
+    import airsim
+    AIRSIM_AVAILABLE = True
+except ImportError:
+    AIRSIM_AVAILABLE = False
+    print("Warning: AirSim not available. Using mock client for testing.")
+    
+    # Create a mock airsim module for testing
+    class MockVector3r:
+        def __init__(self, x=0, y=0, z=0):
+            self.x_val = x
+            self.y_val = y
+            self.z_val = z
+    
+    class MockAirSimClient:
+        def __init__(self):
+            self.position = MockVector3r(0, 0, 20)
+            self.velocity = MockVector3r(0, 0, 0)
+            self.orientation = MockVector3r(0, 0, 0)
+        
+        def confirmConnection(self):
+            return True
+        
+        def enableApiControl(self, enabled):
+            return True
+        
+        def armDisarm(self, armed):
+            return True
+        
+        def takeoffAsync(self):
+            return MockAsyncTask()
+        
+        def landAsync(self):
+            return MockAsyncTask()
+        
+        def hoverAsync(self):
+            return MockAsyncTask()
+        
+        def moveToPositionAsync(self, x, y, z, speed):
+            self.position = MockVector3r(x, y, z)
+            return MockAsyncTask()
+        
+        def moveByVelocityAsync(self, vx, vy, vz, duration):
+            self.velocity = MockVector3r(vx, vy, vz)
+            return MockAsyncTask()
+        
+        def getMultirotorState(self):
+            return MockMultirotorState(self.position, self.velocity, self.orientation)
+        
+        def simGetImages(self, requests):
+            # Return mock image data
+            mock_image = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
+            return [MockImageResponse(mock_image)]
+    
+    class MockAsyncTask:
+        def join(self):
+            return True
+    
+    class MockMultirotorState:
+        def __init__(self, position, velocity, orientation):
+            self.kinematics_estimated = MockKinematics(position, velocity, orientation)
+            self.gps_location = MockGPS()
+            self.collision = MockCollision()
+    
+    class MockKinematics:
+        def __init__(self, position, velocity, orientation):
+            self.position = position
+            self.linear_velocity = velocity
+            self.orientation = orientation
+    
+    class MockGPS:
+        def __init__(self):
+            self.latitude = 0
+            self.longitude = 0
+            self.altitude = 0
+    
+    class MockCollision:
+        def __init__(self):
+            self.has_collided = False
+    
+    class MockImageResponse:
+        def __init__(self, image_data):
+            self.image_data_uint8 = image_data.tobytes()
+            self.height = image_data.shape[0]
+            self.width = image_data.shape[1]
+            self.pixels_as_float = False
+    
+    # Create mock airsim module
+    class MockImageRequest:
+        def __init__(self, name, img_type):
+            self.name = name
+            self.img_type = img_type
+    
+    airsim = type('MockAirSim', (), {
+        'MultirotorClient': MockAirSimClient,
+        'Vector3r': MockVector3r,
+        'ImageRequest': MockImageRequest,
+        'ImageType': type('MockImageType', (), {'Scene': 0})()
+    })()
 
 
 class DroneController:
