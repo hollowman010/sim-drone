@@ -33,6 +33,7 @@ class GPUVMManager:
             self.credentials, self.project_id = google.auth.default()
             self.compute_client = compute_v1.InstancesClient()
             self.zones_client = compute_v1.ZonesClient()
+            self.zone_operations_client = compute_v1.ZoneOperationsClient()
         except DefaultCredentialsError:
             self.logger.error("Google Cloud credentials not found. Run 'gcloud auth application-default login'")
             sys.exit(1)
@@ -268,7 +269,7 @@ class GPUVMManager:
     def _wait_for_operation(self, operation, project_id: str, zone: str):
         """Wait for operation to complete."""
         while operation.status != "DONE":
-            operation = self.compute_client.zone_operations.get(
+            operation = self.zone_operations_client.get(
                 project=project_id,
                 zone=zone,
                 operation=operation.name

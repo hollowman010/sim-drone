@@ -7,9 +7,14 @@ Manages GPU and CPU VMs for optimal cost efficiency in drone simulation workload
 import argparse
 import json
 import logging
+import sys
 import time
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
+
+# Add scripts directory to path for imports
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from gpu_vm_manager import GPUVMManager
 from cpu_vm_manager import CPUVMManager
