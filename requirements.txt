@@ -3,8 +3,8 @@ wheel>=0.40.0
 numpy>=1.24.0
 msgpack-rpc-python==0.4.1
 
-# Note: AirSim is installed separately in CI/CD to handle build dependencies
-# airsim>=1.8.1
+# AirSim (for local development and cloud deployment)
+airsim>=1.8.1
 
 # Computer Vision (essential only)
 opencv-python>=4.8.0
