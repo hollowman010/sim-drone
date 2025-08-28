@@ -28,38 +28,55 @@ A streamlined and efficient UAV simulation project using AirSim for autonomous d
 
 ## 🚀 Quick Start
 
+### Live Run (Cloud)
+
+For real drone control with AirSim on cloud:
+
+```bash
+# Start GCP VM and connect
+gcloud compute instances start airsim-gpu --zone=us-central1-a
+gcloud compute ssh airsim-gpu --zone=us-central1-a
+
+# Setup VNC and AirSim (see docs/QUICKSTART_CLOUD.md)
+vncserver :1 -localhost yes -geometry 1600x900 -depth 24 -xstartup /usr/bin/startxfce4
+
+# Run live simulation
+cd ~/sim-drone && git pull
+source .venv/bin/activate
+RUN_MODE=live scripts/run_live.sh
+```
+
+### Demo Mode (Local)
+
+For testing without AirSim:
+
+```bash
+# Clone and setup
+git clone https://github.com/hollowman010/sim-drone.git
+cd sim-drone
+make venv  # or: python3 -m venv .venv && source .venv/bin/activate
+
+# Install dependencies
+make install  # or: pip install -r requirements.txt
+
+# Run demo (no AirSim needed)
+make demo  # or: RUN_MODE=demo python -m src.main
+```
+
 ### Prerequisites
 
-- Python 3.8+
-- AirSim (Windows/Linux)
-- OpenCV
+- **Cloud**: GCP account with GPU quota
+- **Local**: Python 3.8+, for demo mode only
+- **Live**: AirSim running on target system
 
-### Installation
+### Quick Commands
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd drone-vision-airsim
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Install AirSim**
-   - Follow [AirSim installation guide](https://microsoft.github.io/AirSim/build_linux.html)
-   - Or use pre-built binaries
-
-4. **Configure settings**
-   ```bash
-   # Edit config/settings.json for your environment
-   ```
-
-5. **Run simulation**
-   ```bash
-   python src/main.py
-   ```
+```bash
+make help     # Show available commands
+make demo     # Run demo mode
+make live     # Run live mode (needs AirSim)
+make venv     # Setup virtual environment
+```
 
 ## 📁 Project Structure
 

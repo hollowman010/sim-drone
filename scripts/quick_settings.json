@@ -1,7 +1,10 @@
 {
   "SettingsVersion": 1.2,
   "SimMode": "Multirotor",
+  "LocalHostIp": "127.0.0.1",
+  "ApiServerPort": 41451,
   "ViewMode": "FlyWithMe",
+  "Recording": { "Enabled": false },
   "Vehicles": {
     "Drone1": {
       "VehicleType": "SimpleFlight",

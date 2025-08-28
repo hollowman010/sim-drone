@@ -4,8 +4,15 @@ Streamlined configuration management.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Dict, Any, Optional
+
+# Runtime configuration from environment
+RUN_MODE = os.getenv("RUN_MODE", "live")  # "live" or "demo"
+AIRSIM_HOST = os.getenv("AIRSIM_HOST", "127.0.0.1")
+AIRSIM_PORT = int(os.getenv("AIRSIM_PORT", "41451"))
+TAKEOFF_ALT = float(os.getenv("TAKEOFF_ALT", "5.0"))
 
 
 def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:

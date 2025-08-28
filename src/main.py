@@ -11,7 +11,7 @@ from pathlib import Path
 from flight_control import DroneController
 from mission_logic import MissionLogic
 from vision_targeting import VisionProcessor
-from utils.config import load_config
+from utils.config import load_config, RUN_MODE, AIRSIM_HOST, AIRSIM_PORT
 
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent))
@@ -35,11 +35,28 @@ def main():
     logger = logging.getLogger(__name__)
 
     try:
-        logger.info("Starting Drone Vision AirSim Simulation")
+        logger.info(f"Starting Drone Vision AirSim Simulation (Mode: {RUN_MODE})")
+
+        if RUN_MODE == "demo":
+            logger.info("=== DEMO MODE ===")
+            logger.info("This is a demonstration mode for testing project structure.")
+            logger.info("The drone will NOT actually move. For real flight, set RUN_MODE=live")
+            logger.info("AirSim is not required for this demo")
+            run_demo()
+            return
+
+        # Live mode - real AirSim control
+        logger.info("=== LIVE MODE ===")
+        logger.info(f"Connecting to AirSim at {AIRSIM_HOST}:{AIRSIM_PORT}")
 
         # Load configuration
         config_path = sys.argv[1] if len(sys.argv) > 1 else None
         config = load_config(config_path)
+        
+        # Override with environment settings
+        config["airsim"]["host"] = AIRSIM_HOST
+        config["airsim"]["port"] = AIRSIM_PORT
+        
         logger.info("Configuration loaded successfully")
 
         # Initialize components
@@ -49,7 +66,7 @@ def main():
 
         logger.info("All components initialized")
 
-        # Run simulation
+        # Run live simulation
         run_simulation(drone_controller, vision_processor, mission_logic, logger)
 
     except KeyboardInterrupt:
@@ -59,6 +76,23 @@ def main():
         raise
     finally:
         logger.info("Shutting down Drone Vision system")
+
+
+def run_demo():
+    """Run a demonstration mode without AirSim."""
+    logger = logging.getLogger(__name__)
+    
+    logger.info("Starting demonstration simulation...")
+    logger.info("Simulating drone takeoff...")
+    logger.info("Simulating waypoint navigation...")
+    logger.info("  -> Moving to waypoint 1: (50, 0, 20)")
+    logger.info("  -> Moving to waypoint 2: (50, 50, 20)")
+    logger.info("  -> Moving to waypoint 3: (0, 50, 20)")
+    logger.info("  -> Returning to start: (0, 0, 20)")
+    logger.info("Simulating landing...")
+    logger.info("Demo mission completed successfully!")
+    logger.info("")
+    logger.info("To control a real drone in AirSim, run with: RUN_MODE=live")
 
 
 def run_simulation(drone_controller, vision_processor, mission_logic, logger):
