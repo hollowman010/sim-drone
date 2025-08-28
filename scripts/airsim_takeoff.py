@@ -4,66 +4,91 @@ Simple AirSim takeoff and flight test script.
 Tests connectivity and basic drone control with real AirSim.
 """
 
-import time
-import airsim
+import sys
+from pathlib import Path
 
-IP = "127.0.0.1"
-PORT = 41451  # AirSim default
+# Add src to path
+sys.path.append(str(Path(__file__).parent.parent / "src"))
+
+from flight_control import FlightController
+from utils.config import get_default_config
+from utils.logger import setup_logging, get_logger
+
 
 def main():
-    print("🚁 Starting AirSim takeoff test...")
+    """Test basic AirSim connectivity and drone control."""
+    setup_logging("INFO")
+    logger = get_logger("takeoff_test")
+    
+    logger.info("🚁 Starting AirSim takeoff test...")
+    
+    # Load configuration
+    config = get_default_config()
+    
+    # Create flight controller
+    fc = FlightController(config)
     
     try:
         # Connect to AirSim
-        print("Connecting to AirSim...")
-        client = airsim.MultirotorClient(ip=IP, port=PORT)
-        client.confirmConnection()
-        print("✅ Connected to AirSim!")
+        logger.info("📡 Connecting to AirSim...")
+        if not fc.connect():
+            logger.error("❌ Failed to connect to AirSim")
+            return False
         
-        # Enable API control and arm the drone
-        print("Enabling API control...")
-        client.enableApiControl(True)
-        client.armDisarm(True)
-        print("✅ Drone armed and ready!")
-
-        # Take off and rise to ~5m (Z is negative up in NED)
-        print("Taking off...")
-        client.takeoffAsync(timeout_sec=20).join()
-        print("✅ Takeoff complete!")
+        logger.info("✅ Connected to AirSim!")
         
-        print("Moving to 5m altitude...")
-        client.moveToZAsync(-5.0, velocity=2.0).join()
-        print("✅ At 5m altitude!")
-
-        # Small square to prove movement
-        print("Flying a small square pattern...")
-        client.moveByVelocityZAsync(3, 0, -5, 3).join()  # Forward
-        print("✅ Forward movement complete")
+        # Arm the drone
+        logger.info("🔧 Arming drone...")
+        if not fc.arm():
+            logger.error("❌ Failed to arm drone")
+            return False
         
-        client.moveByVelocityZAsync(0, 3, -5, 3).join()  # Right
-        print("✅ Right movement complete")
+        logger.info("✅ Drone armed and ready!")
         
-        client.moveByVelocityZAsync(-3, 0, -5, 3).join()  # Backward
-        print("✅ Backward movement complete")
+        # Take off
+        logger.info("🚀 Taking off...")
+        if not fc.takeoff():
+            logger.error("❌ Takeoff failed")
+            return False
         
-        client.moveByVelocityZAsync(0, -3, -5, 3).join()  # Left
-        print("✅ Left movement complete")
-
+        logger.info("✅ Takeoff complete!")
+        
+        # Fly a small square pattern
+        logger.info("🗺️  Flying a small square pattern...")
+        if not fc.fly_square(side_m=5.0, alt_m=-5.0, speed=3.0):
+            logger.error("❌ Square flight failed")
+            return False
+        
+        logger.info("✅ Square flight complete!")
+        
         # Land
-        print("Landing...")
-        client.landAsync(timeout_sec=30).join()
-        print("✅ Landing complete!")
+        logger.info("🛬 Landing...")
+        if not fc.land():
+            logger.error("❌ Landing failed")
+            return False
         
-        # Disarm and disable API control
-        client.armDisarm(False)
-        client.enableApiControl(False)
-        print("✅ Drone disarmed and API control disabled")
+        logger.info("✅ Landing complete!")
         
-        print("🎉 AirSim takeoff test completed successfully!")
+        # Disarm
+        logger.info("🔧 Disarming...")
+        if not fc.disarm():
+            logger.warning("⚠️  Failed to disarm drone")
+        else:
+            logger.info("✅ Drone disarmed")
+        
+        logger.info("🎉 AirSim takeoff test completed successfully!")
+        return True
         
     except Exception as e:
-        print(f"❌ Error during AirSim test: {e}")
-        raise
+        logger.error(f"❌ Error during AirSim test: {e}")
+        return False
+        
+    finally:
+        # Cleanup
+        fc.disconnect()
+        logger.info("🔚 Test cleanup completed")
+
 
 if __name__ == "__main__":
-    main()
+    success = main()
+    sys.exit(0 if success else 1)

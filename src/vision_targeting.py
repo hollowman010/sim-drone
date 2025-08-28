@@ -1,98 +1,184 @@
 """
-Vision Processor module for computer vision tasks.
-Streamlined and efficient vision processing implementation.
+Vision processing module for object detection and targeting.
+Simplified computer vision for basic object detection.
 """
 
 import cv2
 import numpy as np
-import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
+from utils.logger import get_logger
 
 
 class VisionProcessor:
-    """Processes visual data from drone cameras."""
-
+    """Handles computer vision processing for object detection."""
+    
     def __init__(self, config: Dict[str, Any]):
-        """Initialize the vision processor.
-
+        """Initialize vision processor.
+        
         Args:
             config: Configuration dictionary
         """
         self.config = config
-        self.logger = logging.getLogger(__name__)
-        self.min_object_area = config.get("min_object_area", 100)
-
-    def process(self, sensor_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process sensor data and extract visual information.
-
-        Args:
-            sensor_data: Dictionary containing sensor data including images
-
-        Returns:
-            Dictionary containing processed vision results
-        """
-        try:
-            results = {
-                "objects_detected": [],
-                "image_processed": False,
-            }
-
-            # Process RGB image
-            if "rgb" in sensor_data.get("images", {}):
-                rgb_image = sensor_data["images"]["rgb"]
-                results.update(self._process_rgb_image(rgb_image))
-
-            return results
-
-        except Exception as e:
-            self.logger.error(f"Error processing vision data: {e}")
-            return {"objects_detected": [], "image_processed": False}
-
-    def _process_rgb_image(self, image: np.ndarray) -> Dict[str, Any]:
-        """Process RGB image for object detection.
-
+        self.logger = get_logger("vision")
+        
+        # Vision settings
+        vision_config = config.get("vision", {})
+        self.min_object_area = vision_config.get("min_object_area", 100)
+        
+        # Object detection parameters
+        self.color_lower = np.array([0, 50, 50])    # Lower HSV threshold
+        self.color_upper = np.array([179, 255, 255])  # Upper HSV threshold
+        
+        self.logger.info("🔧 Vision processor initialized")
+        
+    def process_frame(self, image: np.ndarray) -> Dict[str, Any]:
+        """Process a single frame for object detection.
+        
         Args:
             image: RGB image array
-
+            
         Returns:
             Dictionary containing detection results
         """
-        results: Dict[str, Any] = {"objects_detected": [], "image_processed": True}
-
+        if image is None or image.size == 0:
+            self.logger.warning("⚠️  Received empty image")
+            return {"objects_detected": 0, "detections": []}
+            
         try:
-            # Convert to BGR for OpenCV
-            if len(image.shape) == 3 and image.shape[2] == 3:
-                bgr_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            else:
-                bgr_image = image
-
-            # Basic object detection using contours
-            gray = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
-            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-            # Edge detection
-            edges = cv2.Canny(blurred, 50, 150)
-
+            # Convert RGB to HSV for color-based detection
+            hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+            
+            # Create mask for color detection
+            mask = cv2.inRange(hsv, self.color_lower, self.color_upper)
+            
             # Find contours
-            contours, _ = cv2.findContours(
-                edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-            )
-
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
             # Filter contours by area
-            for contour in contours:
+            valid_contours = [c for c in contours if cv2.contourArea(c) > self.min_object_area]
+            
+            # Extract detection information
+            detections = []
+            for contour in valid_contours:
+                # Get bounding box
+                x, y, w, h = cv2.boundingRect(contour)
                 area = cv2.contourArea(contour)
-                if area > self.min_object_area:
-                    x, y, w, h = cv2.boundingRect(contour)
-                    results["objects_detected"].append(
-                        {
-                            "type": "unknown",
-                            "bbox": [x, y, w, h],
-                            "area": area,
-                            "confidence": 0.5,
-                        }
-                    )
-
+                
+                # Calculate center point
+                center_x = x + w // 2
+                center_y = y + h // 2
+                
+                detection = {
+                    "bbox": (x, y, w, h),
+                    "center": (center_x, center_y),
+                    "area": area,
+                    "confidence": min(1.0, area / 1000.0)  # Simple confidence based on size
+                }
+                detections.append(detection)
+                
+            result = {
+                "objects_detected": len(detections),
+                "detections": detections,
+                "image_shape": image.shape,
+                "processing_success": True
+            }
+            
+            if len(detections) > 0:
+                self.logger.info(f"👁️  Detected {len(detections)} objects")
+            
+            return result
+            
         except Exception as e:
-            self.logger.error(f"Error processing RGB image: {e}")
-
-        return results
+            self.logger.error(f"❌ Vision processing error: {e}")
+            return {
+                "objects_detected": 0,
+                "detections": [],
+                "processing_success": False,
+                "error": str(e)
+            }
+            
+    def detect_targets(self, image: np.ndarray) -> List[Dict[str, Any]]:
+        """Detect specific targets in the image.
+        
+        Args:
+            image: RGB image array
+            
+        Returns:
+            List of target detection dictionaries
+        """
+        result = self.process_frame(image)
+        
+        # Filter detections for targets (simple area-based filtering)
+        targets = []
+        for detection in result.get("detections", []):
+            if detection["area"] > self.min_object_area * 2:  # Larger objects are targets
+                targets.append({
+                    "type": "large_object",
+                    "position": detection["center"],
+                    "bbox": detection["bbox"],
+                    "confidence": detection["confidence"]
+                })
+                
+        return targets
+        
+    def get_image_center(self, image: np.ndarray) -> Tuple[int, int]:
+        """Get the center coordinates of an image.
+        
+        Args:
+            image: Input image
+            
+        Returns:
+            Center coordinates (x, y)
+        """
+        if image is None or len(image.shape) < 2:
+            return (0, 0)
+            
+        height, width = image.shape[:2]
+        return (width // 2, height // 2)
+        
+    def calculate_offset(self, target_position: Tuple[int, int], image_center: Tuple[int, int]) -> Tuple[float, float]:
+        """Calculate offset from image center to target.
+        
+        Args:
+            target_position: Target (x, y) coordinates
+            image_center: Image center (x, y) coordinates
+            
+        Returns:
+            Normalized offset (-1 to 1) in (x, y)
+        """
+        dx = target_position[0] - image_center[0]
+        dy = target_position[1] - image_center[1]
+        
+        # Normalize to image dimensions
+        norm_dx = dx / image_center[0] if image_center[0] > 0 else 0
+        norm_dy = dy / image_center[1] if image_center[1] > 0 else 0
+        
+        return (norm_dx, norm_dy)
+        
+    def set_detection_parameters(self, min_area: int = None, color_range: Tuple[np.ndarray, np.ndarray] = None):
+        """Update detection parameters.
+        
+        Args:
+            min_area: Minimum object area for detection
+            color_range: Tuple of (lower_hsv, upper_hsv) color thresholds
+        """
+        if min_area is not None:
+            self.min_object_area = min_area
+            self.logger.info(f"🔧 Updated min object area to {min_area}")
+            
+        if color_range is not None:
+            self.color_lower, self.color_upper = color_range
+            self.logger.info(f"🔧 Updated color detection range")
+            
+    def get_processing_stats(self) -> Dict[str, Any]:
+        """Get vision processing statistics.
+        
+        Returns:
+            Statistics dictionary
+        """
+        return {
+            "min_object_area": self.min_object_area,
+            "color_lower": self.color_lower.tolist(),
+            "color_upper": self.color_upper.tolist(),
+            "processor_ready": True
+        }

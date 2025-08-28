@@ -1,269 +1,335 @@
 """
-Drone Controller module for AirSim integration.
-Streamlined and efficient drone control implementation.
+Flight control module for drone operations using AirSim.
+Handles drone connection, movement, and sensor data collection.
 """
 
-import logging
-from typing import Dict, Any, Optional
+from __future__ import annotations
+import time
 import numpy as np
+from typing import Dict, List, Tuple, Optional, Any
+from utils.logger import get_logger
 
-# Try to import AirSim, fallback to mock if not available
 try:
     import airsim
-    AIRSIM_AVAILABLE = True
 except ImportError:
-    AIRSIM_AVAILABLE = False
-    print("Warning: AirSim not available. Using mock client for testing.")
-    
-    # Create a mock airsim module for testing
-    class MockVector3r:
-        def __init__(self, x=0, y=0, z=0):
-            self.x_val = x
-            self.y_val = y
-            self.z_val = z
-    
-    class MockAirSimClient:
-        def __init__(self):
-            self.position = MockVector3r(0, 0, 20)
-            self.velocity = MockVector3r(0, 0, 0)
-            self.orientation = MockVector3r(0, 0, 0)
-        
-        def confirmConnection(self):
-            return True
-        
-        def enableApiControl(self, enabled):
-            return True
-        
-        def armDisarm(self, armed):
-            return True
-        
-        def takeoffAsync(self):
-            return MockAsyncTask()
-        
-        def landAsync(self):
-            return MockAsyncTask()
-        
-        def hoverAsync(self):
-            return MockAsyncTask()
-        
-        def moveToPositionAsync(self, x, y, z, speed):
-            self.position = MockVector3r(x, y, z)
-            return MockAsyncTask()
-        
-        def moveByVelocityAsync(self, vx, vy, vz, duration):
-            self.velocity = MockVector3r(vx, vy, vz)
-            return MockAsyncTask()
-        
-        def getMultirotorState(self):
-            return MockMultirotorState(self.position, self.velocity, self.orientation)
-        
-        def simGetImages(self, requests):
-            # Return mock image data
-            mock_image = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
-            return [MockImageResponse(mock_image)]
-    
-    class MockAsyncTask:
-        def join(self):
-            return True
-    
-    class MockMultirotorState:
-        def __init__(self, position, velocity, orientation):
-            self.kinematics_estimated = MockKinematics(position, velocity, orientation)
-            self.gps_location = MockGPS()
-            self.collision = MockCollision()
-    
-    class MockKinematics:
-        def __init__(self, position, velocity, orientation):
-            self.position = position
-            self.linear_velocity = velocity
-            self.orientation = orientation
-    
-    class MockGPS:
-        def __init__(self):
-            self.latitude = 0
-            self.longitude = 0
-            self.altitude = 0
-    
-    class MockCollision:
-        def __init__(self):
-            self.has_collided = False
-    
+    # Mock for development/testing without AirSim installed
+    class MockAirSim:
+        class MultirotorClient:
+            def __init__(self, ip="127.0.0.1", port=41451):
+                self.connected = False
+                
+            def confirmConnection(self):
+                self.connected = True
+                
+            def enableApiControl(self, enable: bool, vehicle_name: str = ""):
+                pass
+                
+            def armDisarm(self, arm: bool, vehicle_name: str = ""):
+                pass
+                
+            def takeoffAsync(self, timeout_sec: float = 20, vehicle_name: str = ""):
+                class MockTask:
+                    def join(self): pass
+                return MockTask()
+                
+            def moveToPositionAsync(self, x: float, y: float, z: float, velocity: float, vehicle_name: str = ""):
+                class MockTask:
+                    def join(self): pass
+                return MockTask()
+                
+            def landAsync(self, timeout_sec: float = 60, vehicle_name: str = ""):
+                class MockTask:
+                    def join(self): pass
+                return MockTask()
+                
+            def simGetImages(self, requests, vehicle_name: str = ""):
+                # Return mock image data
+                return [MockImageResponse()]
+                
+        class ImageRequest:
+            def __init__(self, camera_name: str, image_type, pixels_as_float: bool, compress: bool):
+                self.camera_name = camera_name
+                self.image_type = image_type
+                self.pixels_as_float = pixels_as_float
+                self.compress = compress
+                
+        class ImageType:
+            Scene = 0
+            DepthPlanar = 1
+            Segmentation = 2
+            
     class MockImageResponse:
-        def __init__(self, image_data):
-            self.image_data_uint8 = image_data.tobytes()
-            self.height = image_data.shape[0]
-            self.width = image_data.shape[1]
-            self.pixels_as_float = False
+        def __init__(self):
+            self.image_data_uint8 = np.random.randint(0, 255, (144, 256, 3), dtype=np.uint8).tobytes()
+            self.height = 144
+            self.width = 256
+            
+    airsim = MockAirSim()
+
+
+class FlightController:
+    """Controls drone flight operations and sensor data collection."""
     
-    # Create mock airsim module
-    class MockImageRequest:
-        def __init__(self, name, img_type):
-            self.name = name
-            self.img_type = img_type
-    
-    airsim = type('MockAirSim', (), {
-        'MultirotorClient': MockAirSimClient,
-        'Vector3r': MockVector3r,
-        'ImageRequest': MockImageRequest,
-        'ImageType': type('MockImageType', (), {'Scene': 0})()
-    })()
-
-
-class DroneController:
-    """Controls the drone in AirSim simulation."""
-
     def __init__(self, config: Dict[str, Any]):
-        """Initialize the drone controller.
-
+        """Initialize flight controller.
+        
         Args:
             config: Configuration dictionary
         """
         self.config = config
-        self.client = None
-        self.logger = logging.getLogger(__name__)
-        self.is_connected = False
-
-    def connect(self):
-        """Connect to AirSim client."""
+        self.logger = get_logger("flight_control")
+        
+        # AirSim connection settings
+        airsim_config = config.get("airsim", {})
+        self.host = airsim_config.get("host", "127.0.0.1")
+        self.port = airsim_config.get("port", 41451)
+        self.timeout = airsim_config.get("timeout", 10.0)
+        self.vehicle_name = "Drone1"
+        
+        # Drone settings
+        drone_config = config.get("drone", {})
+        self.max_speed = drone_config.get("max_speed", 10.0)
+        self.takeoff_height = drone_config.get("takeoff_height", 5.0)
+        self.safety_distance = drone_config.get("safety_distance", 5.0)
+        
+        self.client: Optional[airsim.MultirotorClient] = None
+        self.connected = False
+        
+    def connect(self) -> bool:
+        """Connect to AirSim.
+        
+        Returns:
+            True if connection successful, False otherwise
+        """
         try:
-            self.client = airsim.MultirotorClient()
+            self.logger.info(f"Connecting to AirSim at {self.host}:{self.port}")
+            self.client = airsim.MultirotorClient(ip=self.host, port=self.port)
             self.client.confirmConnection()
-            self.client.enableApiControl(True)
-            self.client.armDisarm(True)
-            self.is_connected = True
+            self.client.enableApiControl(True, vehicle_name=self.vehicle_name)
+            self.connected = True
             self.logger.info("Successfully connected to AirSim")
+            return True
+            
         except Exception as e:
             self.logger.error(f"Failed to connect to AirSim: {e}")
-            raise
-
+            self.connected = False
+            return False
+    
     def disconnect(self):
         """Disconnect from AirSim."""
-        if self.client:
-            self.client.enableApiControl(False)
-            self.client = None
-            self.is_connected = False
-            self.logger.info("Disconnected from AirSim")
-
-    def takeoff(self):
-        """Take off the drone."""
-        if not self.is_connected:
-            raise RuntimeError("Not connected to AirSim")
-
+        if self.client and self.connected:
+            try:
+                self.client.enableApiControl(False, vehicle_name=self.vehicle_name)
+                self.connected = False
+                self.logger.info("Disconnected from AirSim")
+            except Exception as e:
+                self.logger.error(f"Error during disconnect: {e}")
+    
+    def arm(self) -> bool:
+        """Arm the drone.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.connected or not self.client:
+            self.logger.error("Not connected to AirSim")
+            return False
+            
         try:
-            self.client.takeoffAsync().join()
-            self.logger.info("Drone took off successfully")
+            self.client.armDisarm(True, vehicle_name=self.vehicle_name)
+            self.logger.info("Drone armed successfully")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to arm drone: {e}")
+            return False
+    
+    def disarm(self) -> bool:
+        """Disarm the drone.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.connected or not self.client:
+            self.logger.error("Not connected to AirSim")
+            return False
+            
+        try:
+            self.client.armDisarm(False, vehicle_name=self.vehicle_name)
+            self.logger.info("Drone disarmed successfully")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to disarm drone: {e}")
+            return False
+    
+    def takeoff(self, timeout_sec: float = 15.0) -> bool:
+        """Take off the drone.
+        
+        Args:
+            timeout_sec: Timeout for takeoff operation
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.connected or not self.client:
+            self.logger.error("Not connected to AirSim")
+            return False
+            
+        try:
+            self.logger.info("Taking off...")
+            self.client.takeoffAsync(timeout_sec=timeout_sec, vehicle_name=self.vehicle_name).join()
+            # Small settle time
+            time.sleep(1.0)
+            self.logger.info("Takeoff completed successfully")
+            return True
         except Exception as e:
             self.logger.error(f"Takeoff failed: {e}")
-            raise
-
-    def land(self):
-        """Land the drone."""
-        if not self.is_connected:
-            return
-
+            return False
+    
+    def land(self, timeout_sec: float = 60.0) -> bool:
+        """Land the drone.
+        
+        Args:
+            timeout_sec: Timeout for landing operation
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.connected or not self.client:
+            self.logger.error("Not connected to AirSim")
+            return False
+            
         try:
-            self.client.landAsync().join()
-            self.logger.info("Drone landed successfully")
+            self.logger.info("Landing...")
+            self.client.landAsync(timeout_sec=timeout_sec, vehicle_name=self.vehicle_name).join()
+            time.sleep(1.0)
+            self.logger.info("Landing completed successfully")
+            return True
         except Exception as e:
             self.logger.error(f"Landing failed: {e}")
-
+            return False
+    
+    def move_to_position(self, x: float, y: float, z: float, velocity: float = None) -> bool:
+        """Move drone to specific position.
+        
+        Args:
+            x: X coordinate (NED frame)
+            y: Y coordinate (NED frame) 
+            z: Z coordinate (NED frame, negative is up)
+            velocity: Movement velocity (m/s)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.connected or not self.client:
+            self.logger.error("Not connected to AirSim")
+            return False
+            
+        if velocity is None:
+            velocity = self.max_speed
+            
+        try:
+            self.logger.info(f"Moving to position ({x:.1f}, {y:.1f}, {z:.1f}) at {velocity:.1f} m/s")
+            self.client.moveToPositionAsync(
+                x, y, z, velocity, vehicle_name=self.vehicle_name
+            ).join()
+            return True
+        except Exception as e:
+            self.logger.error(f"Move to position failed: {e}")
+            return False
+    
+    def fly_square(self, side_m: float = 5.0, alt_m: float = -5.0, speed: float = 2.0) -> bool:
+        """Fly a square pattern.
+        
+        Args:
+            side_m: Side length of square in meters
+            alt_m: Altitude (negative Z in NED)
+            speed: Flight speed
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.connected or not self.client:
+            self.logger.error("Not connected to AirSim")
+            return False
+            
+        try:
+            self.logger.info(f"Flying square pattern: {side_m}m sides at {alt_m}m altitude")
+            
+            # Square waypoints in NED coordinates
+            waypoints = [
+                (0, 0, alt_m),           # Start
+                (side_m, 0, alt_m),      # Forward
+                (side_m, side_m, alt_m), # Right
+                (0, side_m, alt_m),      # Back
+                (0, 0, alt_m),           # Return to start
+            ]
+            
+            for i, (x, y, z) in enumerate(waypoints):
+                self.logger.info(f"Moving to waypoint {i+1}/5: ({x}, {y}, {z})")
+                success = self.move_to_position(x, y, z, speed)
+                if not success:
+                    self.logger.error(f"Failed to reach waypoint {i+1}")
+                    return False
+                    
+            self.logger.info("Square pattern completed successfully")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Square flight pattern failed: {e}")
+            return False
+    
     def get_sensor_data(self) -> Dict[str, Any]:
-        """Get sensor data from the drone.
-
+        """Get sensor data from drone.
+        
         Returns:
             Dictionary containing sensor data
         """
-        if not self.is_connected:
-            raise RuntimeError("Not connected to AirSim")
-
+        if not self.connected or not self.client:
+            self.logger.warning("Not connected to AirSim, returning empty sensor data")
+            return {}
+            
         try:
-            # Get drone state
-            state = self.client.getMultirotorState()
-
-            # Get camera images (only RGB for efficiency) - request uncompressed data
+            # Request RGB camera image (uncompressed)
             responses = self.client.simGetImages([
-                airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)  # pixels_as_float=False, compress=False
-            ])
-
-            # Process RGB image
-            images = {}
-            if responses and responses[0].image_data_uint8:
+                airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)
+            ], vehicle_name=self.vehicle_name)
+            
+            sensor_data = {}
+            
+            if responses and len(responses) > 0:
+                response = responses[0]
                 try:
-                    # Calculate expected size based on actual dimensions
-                    expected_size = responses[0].height * responses[0].width * 3
-                    actual_size = len(responses[0].image_data_uint8)
+                    # Convert image data to numpy array
+                    img_1d = np.frombuffer(response.image_data_uint8, dtype=np.uint8)
+                    img_rgb = img_1d.reshape(response.height, response.width, 3)
+                    sensor_data["rgb_image"] = img_rgb
                     
-                    if actual_size == expected_size:
-                        image_data = np.frombuffer(
-                            responses[0].image_data_uint8, dtype=np.uint8
-                        ).reshape(responses[0].height, responses[0].width, 3)
-                        images["rgb"] = image_data
-                    else:
-                        # Handle compressed or different format images
-                        self.logger.warning(f"Image size mismatch: expected {expected_size}, got {actual_size}")
-                        # Create a placeholder image
-                        images["rgb"] = np.zeros((responses[0].height, responses[0].width, 3), dtype=np.uint8)
-                except Exception as img_error:
-                    self.logger.warning(f"Image processing failed: {img_error}")
-                    # Create a placeholder image
-                    images["rgb"] = np.zeros((responses[0].height, responses[0].width, 3), dtype=np.uint8)
-
-            return {
-                "position": state.kinematics_estimated.position,
-                "orientation": state.kinematics_estimated.orientation,
-                "velocity": state.kinematics_estimated.linear_velocity,
-                "images": images,
-                "gps": state.gps_location,
-                "collision": state.collision,
-            }
-
+                except Exception as e:
+                    self.logger.warning(f"Failed to process image data: {e}")
+                    # Provide placeholder image
+                    sensor_data["rgb_image"] = np.zeros((144, 256, 3), dtype=np.uint8)
+            else:
+                self.logger.warning("No image response received")
+                sensor_data["rgb_image"] = np.zeros((144, 256, 3), dtype=np.uint8)
+                
+            return sensor_data
+            
         except Exception as e:
             self.logger.error(f"Failed to get sensor data: {e}")
-            raise
+            return {"rgb_image": np.zeros((144, 256, 3), dtype=np.uint8)}
 
-    def execute_commands(self, commands: Dict[str, Any]):
-        """Execute mission commands.
 
-        Args:
-            commands: Dictionary containing mission commands
-        """
-        if not self.is_connected:
-            return
-
-        try:
-            action = commands.get("action")
-            
-            if action == "move_to_position":
-                pos = commands["position"]
-                speed = commands.get("speed", 5.0)
-                self.client.moveToPositionAsync(pos[0], pos[1], pos[2], speed)
-
-            elif action == "move_by_velocity":
-                vel = commands["parameters"]
-                self.client.moveByVelocityAsync(
-                    vel["vx"], vel["vy"], vel["vz"], vel["duration"]
-                )
-
-            elif action == "hover":
-                self.client.hoverAsync()
-
-            elif action == "takeoff":
-                self.takeoff()
-
-            elif action == "land":
-                self.land()
-
-        except Exception as e:
-            self.logger.error(f"Failed to execute commands: {e}")
-
-    def get_position(self) -> Optional[airsim.Vector3r]:
-        """Get current drone position."""
-        if not self.is_connected:
-            return None
-
-        try:
-            state = self.client.getMultirotorState()
-            return state.kinematics_estimated.position
-        except Exception as e:
-            self.logger.error(f"Failed to get position: {e}")
-            return None
+class DroneController:
+    """Legacy wrapper for compatibility."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        self.flight_controller = FlightController(config)
+        
+    def connect(self) -> bool:
+        return self.flight_controller.connect()
+        
+    def disconnect(self):
+        self.flight_controller.disconnect()
+        
+    def get_sensor_data(self) -> Dict[str, Any]:
+        return self.flight_controller.get_sensor_data()
