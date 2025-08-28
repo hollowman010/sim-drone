@@ -1,0 +1,26 @@
+# Development requirements (keep the existing pinned versions)
+# Core dependencies
+wheel>=0.40.0
+numpy>=1.24.0
+msgpack-rpc-python==0.4.1
+
+# AirSim (for local development and cloud deployment)
+airsim==1.8.1
+
+# Computer Vision (essential only)
+opencv-python>=4.8.0
+
+# Google Cloud Platform
+google-auth>=2.17.0
+google-cloud-compute>=1.12.0
+
+# Utilities
+requests>=2.31.0
+pyyaml>=6.0
+
+# Testing
+pytest>=7.4.0
+
+# Development (optional)
+black>=23.0.0
+flake8>=6.0.0
