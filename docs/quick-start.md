@@ -36,9 +36,60 @@ Edit `config/settings.json` with your AirSim connection details:
 }
 ```
 
-### 5. Run the Simulation
+### 5. Setup Settings (one-time or when you change them)
 ```bash
-python src/main.py
+# Copy settings to AirSim directory
+mkdir -p ~/Documents/AirSim
+cp config/settings.json ~/Documents/AirSim/settings.json
+```
+
+### 6. Run the Simulation
+```bash
+python -m src.main --mode=live
+```
+
+## Cloud Start-of-Day (GCP)
+
+### Copy/Paste Commands for Daily Use:
+```bash
+# 0) Start GPU VM
+gcloud compute instances start airsim-gpu --zone=us-central1-a
+
+# 1) Start VNC on the VM
+gcloud compute ssh airsim-gpu --zone=us-central1-a --command \
+  "vncserver -kill :1 || true; vncserver :1 -localhost yes -geometry 1600x900 -depth 24 -xstartup /usr/bin/startxfce4"
+
+# 2) Open SSH tunnel (keep this terminal open)
+gcloud compute ssh airsim-gpu --zone=us-central1-a -- \
+  -N -L 5901:localhost:5901 \
+  -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3
+
+# 3) In VNC desktop, launch Blocks
+cd ~/airsim_env/LinuxBlocks1.8.1/LinuxNoEditor
+./Blocks/Binaries/Linux/Blocks -opengl -windowed -ResX=1600 -ResY=900
+
+# 4) Setup settings (first time)
+mkdir -p ~/Documents/AirSim
+cp -f ~/sim-drone/config/settings.json ~/Documents/AirSim/settings.json
+
+# 5) Run smoke test (in VM terminal)
+cd ~/sim-drone && git pull
+python3 -m venv .venv && source .venv/bin/activate
+pip install -U pip && pip install -r requirements.txt
+./scripts/airsim_takeoff.py
+
+# 6) Run full mission
+python -m src.main --mode=live
+```
+
+## Cloud End-of-Day:
+```bash
+# Stop AirSim + VNC on VM
+pkill -f Blocks || true
+vncserver -kill :1 || true
+
+# Stop VM from laptop
+gcloud compute instances stop airsim-gpu --zone=us-central1-a
 ```
 
 ## What Happens Next

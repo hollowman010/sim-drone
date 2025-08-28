@@ -10,6 +10,7 @@ import subprocess
 import json
 import logging
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Dict, List, Optional
 
 
@@ -58,7 +59,8 @@ class CloudManager:
                 return True
 
             # Check for recent file modifications in project directory
-            project_dir = "/home/medimonam/drone-vision"
+            # Get project directory relative to this script
+            project_dir = str(Path(__file__).resolve().parents[1])
             if os.path.exists(project_dir):
                 # Check if any files were modified in the last 10 minutes
                 recent_files = subprocess.run(
@@ -228,10 +230,10 @@ class CloudManager:
 
 def main():
     """Main function"""
-    # Configuration
-    PROJECT_ID = "drone-sim-project"
-    INSTANCE_NAME = "drone-sim-dev"
-    ZONE = "us-central1-a"
+    # Configuration with environment variable overrides
+    PROJECT_ID = os.getenv("GCP_PROJECT", "drone-sim-project")
+    INSTANCE_NAME = os.getenv("GCP_INSTANCE", "airsim-gpu") 
+    ZONE = os.getenv("GCP_ZONE", "us-central1-a")
 
     manager = CloudManager(PROJECT_ID, INSTANCE_NAME, ZONE)
 

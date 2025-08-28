@@ -5,13 +5,14 @@ Tests connectivity and basic drone control with real AirSim.
 """
 
 import sys
+import time
 from pathlib import Path
 
 # Add src to path
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
 from flight_control import FlightController
-from utils.config import get_default_config
+from utils.config import load_config
 from utils.logger import setup_logging, get_logger
 
 
@@ -20,10 +21,10 @@ def main():
     setup_logging("INFO")
     logger = get_logger("takeoff_test")
     
-    logger.info("🚁 Starting AirSim takeoff test...")
+    logger.info("🚁 Starting AirSim smoke test...")
     
-    # Load configuration
-    config = get_default_config()
+    # Load configuration (picks up config/settings.json if present)
+    config = load_config()
     
     # Create flight controller
     fc = FlightController(config)
@@ -47,19 +48,22 @@ def main():
         
         # Take off
         logger.info("🚀 Taking off...")
+        takeoff_height = config.get("drone", {}).get("takeoff_height", 3.5)
         if not fc.takeoff():
             logger.error("❌ Takeoff failed")
             return False
         
         logger.info("✅ Takeoff complete!")
         
-        # Fly a small square pattern
-        logger.info("🗺️  Flying a small square pattern...")
-        if not fc.fly_square(side_m=5.0, alt_m=-5.0, speed=3.0):
-            logger.error("❌ Square flight failed")
+        # Move to takeoff height
+        logger.info(f"📏 Moving to {takeoff_height}m altitude...")
+        if not fc.move_to_position(0, 0, -takeoff_height, 2.0):
+            logger.error("❌ Failed to reach altitude")
             return False
-        
-        logger.info("✅ Square flight complete!")
+            
+        # Hover for a few seconds
+        logger.info("🚁 Hovering for 3 seconds...")
+        time.sleep(3)
         
         # Land
         logger.info("🛬 Landing...")
@@ -76,7 +80,7 @@ def main():
         else:
             logger.info("✅ Drone disarmed")
         
-        logger.info("🎉 AirSim takeoff test completed successfully!")
+        logger.info("✅ AirSim smoke test completed successfully!")
         return True
         
     except Exception as e:
@@ -86,7 +90,7 @@ def main():
     finally:
         # Cleanup
         fc.disconnect()
-        logger.info("🔚 Test cleanup completed")
+        logger.info("🔚 Smoke test cleanup completed")
 
 
 if __name__ == "__main__":
