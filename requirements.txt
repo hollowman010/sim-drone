@@ -4,7 +4,7 @@ numpy>=1.24.0
 msgpack-rpc-python==0.4.1
 
 # AirSim (for local development and cloud deployment)
-airsim>=1.8.1
+airsim==1.8.1
 
 # Computer Vision (essential only)
 opencv-python>=4.8.0

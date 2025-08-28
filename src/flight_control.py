@@ -180,18 +180,33 @@ class DroneController:
             # Get drone state
             state = self.client.getMultirotorState()
 
-            # Get camera images (only RGB for efficiency)
+            # Get camera images (only RGB for efficiency) - request uncompressed data
             responses = self.client.simGetImages([
-                airsim.ImageRequest("0", airsim.ImageType.Scene)
+                airsim.ImageRequest("0", airsim.ImageType.Scene, False, False)  # pixels_as_float=False, compress=False
             ])
 
             # Process RGB image
             images = {}
             if responses and responses[0].image_data_uint8:
-                image_data = np.frombuffer(
-                    responses[0].image_data_uint8, dtype=np.uint8
-                ).reshape(responses[0].height, responses[0].width, 3)
-                images["rgb"] = image_data
+                try:
+                    # Calculate expected size based on actual dimensions
+                    expected_size = responses[0].height * responses[0].width * 3
+                    actual_size = len(responses[0].image_data_uint8)
+                    
+                    if actual_size == expected_size:
+                        image_data = np.frombuffer(
+                            responses[0].image_data_uint8, dtype=np.uint8
+                        ).reshape(responses[0].height, responses[0].width, 3)
+                        images["rgb"] = image_data
+                    else:
+                        # Handle compressed or different format images
+                        self.logger.warning(f"Image size mismatch: expected {expected_size}, got {actual_size}")
+                        # Create a placeholder image
+                        images["rgb"] = np.zeros((responses[0].height, responses[0].width, 3), dtype=np.uint8)
+                except Exception as img_error:
+                    self.logger.warning(f"Image processing failed: {img_error}")
+                    # Create a placeholder image
+                    images["rgb"] = np.zeros((responses[0].height, responses[0].width, 3), dtype=np.uint8)
 
             return {
                 "position": state.kinematics_estimated.position,
