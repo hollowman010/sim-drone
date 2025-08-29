@@ -1,70 +1,42 @@
 """
-Simple drone flight mission - validates AirSim connection and basic flight.
-Clean implementation focused on core flight operations.
+Cloud-based drone mission with integrated vision processing.
+Runs entirely on GCP VM with AirSim.
 """
 
 from __future__ import annotations
-import os
-import sys
+import os, sys
+
+# Make "python src/main.py" work even if not installed
+sys.path.append(os.path.dirname(__file__))
+
 from flight_control import FlightController, FlightConfig
+from mission_logic import MissionPlanner, MissionConfig
 
 
 def main() -> int:
-    """Simple drone flight mission - forward, right, back home."""
-    
     cfg = FlightConfig(
         host=os.getenv("AIRSIM_HOST", "127.0.0.1"),
         port=int(os.getenv("AIRSIM_PORT", "41451")),
-        vehicle=os.getenv("AIRSIM_VEHICLE", "Drone1"),
-        takeoff_alt_m=float(os.getenv("AIRSIM_TAKEOFF_ALT", "5")),
-        speed_mps=float(os.getenv("AIRSIM_SPEED", "3")),
+        vehicle_name=os.getenv("AIRSIM_VEHICLE") or None,
+        takeoff_alt_m=float(os.getenv("AIRSIM_TAKEOFF_ALT", "5.0")),
     )
 
-    print(f"🚁 Starting drone mission at {cfg.host}:{cfg.port}")
-    print(f"Vehicle: {cfg.vehicle}, Altitude: {cfg.takeoff_alt_m}m, Speed: {cfg.speed_mps}m/s")
-    
+    save_dir = os.getenv("OUTPUT_DIR")  # e.g. ~/runs/2025-08-27_1230
+    mcfg = MissionConfig(
+        save_frames_dir=save_dir,
+        vision_enabled=bool(int(os.getenv("VISION", "0")))
+    )
+
+    print(f"🚁 Starting vision-integrated drone mission")
+    print(f"   Host: {cfg.host}:{cfg.port}")
+    print(f"   Vision: {'enabled' if mcfg.vision_enabled else 'disabled'}")
+    print(f"   Output: {save_dir or 'none'}")
+
+    planner = MissionPlanner(FlightController(cfg), mcfg)
     try:
-        fc = FlightController(cfg)
-        
-        print("🔗 Connecting to AirSim...")
-        if not fc.connect():
-            print("❌ Failed to connect to AirSim")
-            return 1
-            
-        print("🚀 Taking off...")
-        if not fc.takeoff():
-            print("❌ Takeoff failed")
-            return 1
-            
-        # Simple demo flight pattern: forward 10m, right 5m, back home
-        print("🗺️  Executing flight pattern...")
-        
-        print("   → Moving forward 10m...")
-        if not fc.goto(10, 0):
-            print("❌ Forward movement failed")
-            return 1
-            
-        print("   → Moving right 5m...")
-        if not fc.goto(10, 5):
-            print("❌ Right movement failed")
-            return 1
-            
-        print("   → Returning home...")
-        if not fc.goto(0, 0):
-            print("❌ Return home failed")
-            return 1
-            
-        print("🚁 Hovering briefly...")
-        fc.hover(2.0)
-        
-        print("🛬 Landing...")
-        if not fc.land_and_shutdown():
-            print("❌ Landing failed")
-            return 1
-            
-        print("✅ Mission completed successfully!")
-        return 0
-        
+        ok = planner.run()
+        print("✅ Mission completed successfully!" if ok else "❌ Mission failed to start (connection).")
+        return 0 if ok else 1
     except KeyboardInterrupt:
         print("\n🛑 Mission interrupted by user")
         return 130

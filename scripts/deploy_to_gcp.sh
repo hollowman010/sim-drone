@@ -3,10 +3,10 @@
 
 set -e
 
-# Configuration
-PROJECT_ID="drone-sim-project"
-INSTANCE_NAME="drone-sim-dev"
-ZONE="us-central1-a"
+# Configuration - use environment variables or defaults
+PROJECT_ID="${GCP_PROJECT:-drone-sim-project}"
+INSTANCE_NAME="${GPU_VM_NAME:-airsim-gpu}"
+ZONE="${GCP_ZONE:-us-central1-a}"
 REMOTE_USER="medimonam"
 REMOTE_DIR="/home/medimonam/drone-vision"
 
@@ -42,16 +42,19 @@ echo "Setting up environment..."
 gcloud compute ssh $REMOTE_USER@$INSTANCE_NAME --zone=$ZONE --command="
 cd $REMOTE_DIR
 
-# Install system dependencies
+# Install system dependencies for vision and AirSim
 sudo apt-get update
-sudo apt-get install -y python3-pip python3-venv git curl wget
+sudo apt-get install -y python3-pip python3-venv curl wget \\
+    python3-opencv libopencv-dev \\
+    python3-numpy python3-scipy
 
 # Create virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
-# Install Python dependencies
+# Install Python dependencies including vision support
 pip install -r requirements.txt
+pip install opencv-python numpy airsim
 
 # Make scripts executable
 chmod +x scripts/cloud_management.py
@@ -74,7 +77,9 @@ echo "📋 Next steps:"
 echo "1. SSH to your instance: gcloud compute ssh $REMOTE_USER@$INSTANCE_NAME --zone=$ZONE"
 echo "2. Check cloud manager status: sudo systemctl status cloud-manager"
 echo "3. View logs: sudo journalctl -u cloud-manager -f"
-echo "4. Test your simulation: cd $REMOTE_DIR && python src/main.py"
+echo "4. Test your simulation:"
+echo "   Basic flight: cd $REMOTE_DIR && python src/main.py"
+echo "   With vision:  cd $REMOTE_DIR && VISION=1 OUTPUT_DIR=~/runs/\$(date +%F_%H%M%S) python src/main.py"
 echo ""
 echo "💰 Cost management:"
 echo "- Instance will auto-shutdown after 30 minutes of inactivity"

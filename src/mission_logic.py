@@ -1,159 +1,125 @@
 """
-Mission logic for autonomous drone operations.
-Handles waypoint navigation and mission execution.
+Mission logic for autonomous drone operations with vision integration.
+Handles waypoint navigation, vision processing, and frame capture.
 """
 
+from __future__ import annotations
+from dataclasses import dataclass
+from typing import Sequence, Tuple, Optional
+import os
 import time
-from typing import List, Tuple, Dict, Any, Optional
-from utils.logger import get_logger
+import pathlib
+
+from flight_control import FlightController, FlightConfig
+
+# Lazy import inside methods to avoid hard fail if cv2/airsim not installed
+# until we actually run with vision/camera.
+def _ensure_dir(p: str) -> None:
+    path = pathlib.Path(p).expanduser()
+    path.mkdir(parents=True, exist_ok=True)
 
 
-class MissionLogic:
-    """Handles mission planning and execution logic."""
-    
-    def __init__(self, config: Dict[str, Any]):
-        """Initialize mission logic.
-        
-        Args:
-            config: Configuration dictionary
-        """
-        self.config = config
-        self.logger = get_logger("mission")
-        
-        # Mission settings
-        mission_config = config.get("mission", {})
-        self.max_duration = mission_config.get("max_mission_duration", 1800)
-        self.waypoint_tolerance = mission_config.get("waypoint_tolerance", 2.0)
-        self.target_threshold = mission_config.get("target_detection_threshold", 0.7)
-        
-        # Mission state
-        self.current_waypoint = 0
-        self.mission_start_time = None
-        self.mission_active = False
-        
-        # Default patrol pattern (square)
-        self.patrol_waypoints = [
-            (0, 0, -5),     # Start/Home
-            (20, 0, -5),    # Forward
-            (20, 20, -5),   # Right  
-            (0, 20, -5),    # Back
-            (0, 0, -5),     # Return home
-        ]
-        
-    def start_mission(self) -> bool:
-        """Start the mission.
-        
-        Returns:
-            True if mission started successfully
-        """
-        self.logger.info("🚀 Starting patrol mission")
-        self.mission_start_time = time.time()
-        self.mission_active = True
-        self.current_waypoint = 0
-        return True
-        
-    def stop_mission(self) -> bool:
-        """Stop the mission.
-        
-        Returns:
-            True if mission stopped successfully
-        """
-        self.logger.info("🛑 Stopping mission")
-        self.mission_active = False
-        return True
-        
-    def get_next_waypoint(self) -> Optional[Tuple[float, float, float]]:
-        """Get the next waypoint in the mission.
-        
-        Returns:
-            Next waypoint coordinates (x, y, z) or None if mission complete
-        """
-        if not self.mission_active:
-            return None
-            
-        if self.current_waypoint >= len(self.patrol_waypoints):
-            self.logger.info("✅ All waypoints completed")
-            return None
-            
-        waypoint = self.patrol_waypoints[self.current_waypoint]
-        self.logger.info(f"🗺️  Next waypoint {self.current_waypoint + 1}/{len(self.patrol_waypoints)}: {waypoint}")
-        return waypoint
-        
-    def waypoint_reached(self) -> bool:
-        """Mark current waypoint as reached and advance to next.
-        
-        Returns:
-            True if more waypoints remaining, False if mission complete
-        """
-        self.current_waypoint += 1
-        self.logger.info(f"✅ Waypoint {self.current_waypoint} reached")
-        
-        if self.current_waypoint >= len(self.patrol_waypoints):
-            self.logger.info("🎯 Mission completed - all waypoints visited")
-            self.mission_active = False
-            return False
-            
-        return True
-        
-    def check_mission_timeout(self) -> bool:
-        """Check if mission has exceeded maximum duration.
-        
-        Returns:
-            True if mission should timeout
-        """
-        if not self.mission_active or not self.mission_start_time:
-            return False
-            
-        elapsed = time.time() - self.mission_start_time
-        if elapsed > self.max_duration:
-            self.logger.warning(f"⏰ Mission timeout after {elapsed:.1f}s")
-            return True
-            
-        return False
-        
-    def process_vision_data(self, vision_result: Dict[str, Any]) -> Dict[str, Any]:
-        """Process vision detection results.
-        
-        Args:
-            vision_result: Vision processing results
-            
-        Returns:
-            Mission command based on vision data
-        """
-        if not vision_result:
-            return {"action": "continue"}
-            
-        # Check for target detection
-        objects_detected = vision_result.get("objects_detected", 0)
-        if objects_detected > 0:
-            self.logger.info(f"👁️  Detected {objects_detected} objects")
-            
-            # For now, just log and continue
-            # Future: implement target tracking, hovering, etc.
-            return {
-                "action": "log_detection",
-                "objects": objects_detected,
-                "message": f"Detected {objects_detected} objects"
-            }
-            
-        return {"action": "continue"}
-        
-    def get_mission_status(self) -> Dict[str, Any]:
-        """Get current mission status.
-        
-        Returns:
-            Mission status dictionary
-        """
-        if not self.mission_start_time:
-            elapsed = 0
+@dataclass
+class MissionConfig:
+    waypoints_m: Sequence[Tuple[float, float, float]] = (
+        (10, 0, 0), (0, 10, 0), (-10, 0, 0), (0, -10, 0)
+    )
+    speed_mps: float = 2.0
+    hover_s: float = 0.4
+    camera_name: str = "0"  # default AirSim camera
+    save_frames_dir: Optional[str] = None  # e.g. "~/runs/$(date +...)"
+    vision_enabled: bool = bool(int(os.getenv("VISION", "0")))  # set VISION=1 to enable
+    compress_camera: bool = True  # request PNG bytes
+
+
+class MissionPlanner:
+    def __init__(self, fc: FlightController, mcfg: Optional[MissionConfig] = None):
+        self.fc = fc
+        self.cfg = mcfg or MissionConfig()
+
+    def _get_bgr_frame(self):
+        import numpy as np
+        import cv2
+        import airsim  # type: ignore
+
+        assert self.fc.client, "Not connected"
+        req = airsim.ImageRequest(
+            self.cfg.camera_name,
+            airsim.ImageType.Scene,
+            pixels_as_float=False,
+            compress=self.cfg.compress_camera,
+        )
+        resp = self.fc.client.simGetImages([req])[0]
+        if self.cfg.compress_camera:
+            arr = np.frombuffer(resp.image_data_uint8, dtype=np.uint8)
+            if arr.size == 0:
+                return None
+            img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            return img
         else:
-            elapsed = time.time() - self.mission_start_time
+            # uncompressed path
+            w = resp.width
+            h = resp.height
+            if w == 0 or h == 0 or not resp.image_data_uint8:
+                return None
+            arr = np.frombuffer(resp.image_data_uint8, dtype=np.uint8)
+            img = arr.reshape(h, w, 3)
+            return img
+
+    def _vision_step(self, step_idx: int):
+        if not self.cfg.vision_enabled:
+            return
+        import cv2
+        from vision_targeting import VisionProcessor
+
+        frame = self._get_bgr_frame()
+        if frame is None:
+            print("⚠️ Vision: no frame")
+            return
             
-        return {
-            "active": self.mission_active,
-            "current_waypoint": self.current_waypoint,
-            "total_waypoints": len(self.patrol_waypoints),
-            "elapsed_time": elapsed,
-            "max_duration": self.max_duration,
-            "progress": (self.current_waypoint / len(self.patrol_waypoints)) * 100
-        }
+        # Convert BGR to RGB for your VisionProcessor
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        # Use your existing VisionProcessor
+        if not hasattr(self, '_vision_processor'):
+            self._vision_processor = VisionProcessor({"vision": {}})
+            
+        result = self._vision_processor.process_frame(frame_rgb)
+        
+        if result["objects_detected"] > 0:
+            # Get the best detection
+            detections = result["detections"]
+            best = max(detections, key=lambda d: d["area"])
+            x, y, w, h = best["bbox"]
+            print(f"🎯 Vision: best bbox=({x},{y},{w},{h}) area={best['area']:.0f}")
+        else:
+            print("👀 Vision: no targets")
+
+        if self.cfg.save_frames_dir:
+            _ensure_dir(self.cfg.save_frames_dir)
+            # Draw annotations on original frame
+            annotated = frame.copy()
+            for det in result.get("detections", []):
+                x, y, w, h = det["bbox"]
+                cv2.rectangle(annotated, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cv2.putText(annotated, f"area:{det['area']:.0f}", (x, y - 6),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+            
+            out_path = os.path.join(self.cfg.save_frames_dir, f"frame_{step_idx:03d}.jpg")
+            cv2.imwrite(out_path, annotated)
+
+    def run(self) -> bool:
+        if not self.fc.connect():
+            return False
+        try:
+            self.fc.takeoff_if_needed()
+            for i, (dx, dy, dz) in enumerate(self.cfg.waypoints_m, start=1):
+                print(f"➡️ Move Δ({dx},{dy},{dz}) m …")
+                self.fc.goto_relative(dx, dy, dz, speed=self.cfg.speed_mps)
+                # Vision capture/annotate at each waypoint
+                self._vision_step(i)
+                self.fc.hover(self.cfg.hover_s)
+            self.fc.land()
+            return True
+        finally:
+            self.fc.disconnect()

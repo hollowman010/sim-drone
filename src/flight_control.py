@@ -150,6 +150,65 @@ class FlightController:
             print(f"❌ Landing failed: {e}")
             return False
 
+    def takeoff_if_needed(self) -> bool:
+        """Take off if not already airborne."""
+        if not self.connected:
+            print("❌ Not connected to AirSim")
+            return False
+            
+        try:
+            state = self.client.getMultirotorState(vehicle_name=self.cfg.vehicle)
+            # Check if already airborne (landed_state: 0=landed, 1=flying)
+            if hasattr(state, 'landed_state') and state.landed_state != 0:
+                print("✅ Already airborne")
+                return True
+            else:
+                return self.takeoff()
+        except Exception as e:
+            print(f"❌ Takeoff check failed: {e}")
+            return False
+
+    def goto_relative(self, dx: float, dy: float, dz: float, speed: float = 2.0) -> bool:
+        """Move relative to current position in NED frame."""
+        if not self.connected:
+            print("❌ Not connected to AirSim")
+            return False
+            
+        try:
+            import airsim
+            pose = self.client.simGetVehiclePose(vehicle_name=self.cfg.vehicle)
+            target_x = pose.position.x_val + dx
+            target_y = pose.position.y_val + dy 
+            target_z = pose.position.z_val + dz
+            
+            print(f"📍 Moving relative Δ({dx:.1f}, {dy:.1f}, {dz:.1f}) at {speed:.1f} m/s")
+            self.client.moveToPositionAsync(
+                target_x, target_y, target_z, speed,
+                drivetrain=airsim.DrivetrainType.ForwardOnly,
+                yaw_mode=airsim.YawMode(is_rate=False, yaw_or_rate=0.0),
+                vehicle_name=self.cfg.vehicle
+            ).join()
+            print(f"✅ Reached relative position")
+            return True
+        except Exception as e:
+            print(f"❌ Relative move failed: {e}")
+            return False
+
+    def land(self) -> bool:
+        """Land the drone."""
+        if not self.connected:
+            print("❌ Not connected to AirSim")
+            return False
+            
+        try:
+            print("🛬 Landing...")
+            self.client.landAsync(vehicle_name=self.cfg.vehicle).join()
+            print("✅ Landing complete")
+            return True
+        except Exception as e:
+            print(f"❌ Landing failed: {e}")
+            return False
+
     def disconnect(self):
         """Clean disconnect."""
         if self.connected:
