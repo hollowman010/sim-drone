@@ -10,10 +10,10 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent / "src"))
 
-from src.utils.config import load_config, get_default_config
-from src.utils.logger import setup_logging, DroneVisionLogger
-from src.vision_targeting import VisionProcessor
-from src.mission_logic import MissionLogic, Waypoint
+from sim_drone.utils.config import load_config, get_default_config
+from sim_drone.utils.logger import setup_logging, DroneVisionLogger
+from sim_drone.vision_targeting import VisionProcessor
+from sim_drone.mission_logic import MissionLogic, Waypoint
 
 
 def demo_configuration():

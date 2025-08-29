@@ -5,7 +5,7 @@ Allows running as: python -m sim_drone or via simdrone command
 
 from __future__ import annotations
 import sys
-from .main import main as main_func
+from sim_drone.main import main as main_func
 
 
 def main():

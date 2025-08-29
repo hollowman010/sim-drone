@@ -12,8 +12,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 # Import src modules after path setup
 try:
-    from src.utils.config import get_default_config
-    from src.utils.logger import DroneVisionLogger
+    from sim_drone.utils.config import get_default_config
+    from sim_drone.utils.logger import DroneVisionLogger
 except ImportError:
     # Fallback for when src is not in path
     pass
