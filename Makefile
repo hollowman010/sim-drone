@@ -63,6 +63,15 @@ demo: install  ## Run demo mode (no AirSim needed)
 up:  ## Start GCP VM and VNC
 	@echo "🚀 Starting VM and VNC..."
 	gcloud compute instances start $(INSTANCE) --zone=$(ZONE)
+	@echo "⏳ Waiting for SSH to be ready..."
+	@for i in {1..12}; do \
+		if gcloud compute ssh $(INSTANCE) --zone=$(ZONE) --command "echo SSH ready" >/dev/null 2>&1; then \
+			echo "✓ SSH is ready after $$((i*5)) seconds"; \
+			break; \
+		fi; \
+		echo "  Attempt $$i/12: SSH not ready, waiting 5s..."; \
+		sleep 5; \
+	done
 	gcloud compute ssh $(INSTANCE) --zone=$(ZONE) --command \
 	  "vncserver -kill :1 || true; vncserver :1 -localhost yes -geometry 1600x900 -depth 24 -xstartup /usr/bin/startxfce4"
 	@echo "✅ VM started. Run 'make tunnel' in another terminal, then connect VNC to localhost:5901"
