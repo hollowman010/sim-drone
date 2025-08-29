@@ -1,62 +1,9 @@
-# Python
+.venv/
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
-venv/
-env/
-ENV/
-
-# IDE
+*.pyc
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# Logs
-*.log
-logs/
-
-# Data files
-data/collected/
-*.csv
-*.json
-*.pkl
-*.h5
-
-# AirSim
-*.uproject
-*.uasset
-Binaries/
-Intermediate/
-Saved/
-
-# OS
 .DS_Store
-Thumbs.db
-
-# Jupyter
-.ipynb_checkpoints/
-
-# Environment variables
-.env
-.env.local
-sim-drone.bundle
+*.log
+*.out
+Documents/AirSim/settings.json

@@ -1,0 +1,38 @@
+{
+  "airsim": {
+    "host": "35.192.89.122",
+    "port": 41451,
+    "timeout": 10.0
+  },
+  "drone": {
+    "max_speed": 10.0,
+    "takeoff_height": 5.0,
+    "safety_distance": 5.0,
+    "emergency_landing_height": 2.0
+  },
+  "vision": {
+    "min_object_area": 100,
+    "obstacle_threshold": 0.3,
+    "min_landing_area": 1000,
+    "detection_model_path": null,
+    "segmentation_model_path": null
+  },
+  "navigation": {
+    "obstacle_avoidance": true,
+    "safety_distance": 5.0,
+    "max_speed": 10.0,
+    "waypoint_tolerance": 2.0
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "drone_vision.log",
+    "max_size": "10MB",
+    "backup_count": 5
+  },
+  "data_collection": {
+    "enabled": true,
+    "save_images": true,
+    "save_sensor_data": true,
+    "output_dir": "data/collected"
+  }
+}

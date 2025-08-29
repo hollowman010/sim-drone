@@ -1,0 +1,21 @@
+{
+  "airsim": {
+    "host": "34.59.112.235",
+    "port": 41451,
+    "timeout": 10.0
+  },
+  "drone": {
+    "max_speed": 10.0,
+    "takeoff_height": 5.0,
+    "safety_distance": 5.0
+  },
+  "mission": {
+    "max_mission_duration": 1800,
+    "target_detection_threshold": 0.7,
+    "waypoint_tolerance": 2.0
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "drone_vision.log"
+  }
+}

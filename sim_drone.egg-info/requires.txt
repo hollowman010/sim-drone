@@ -1,0 +1,8 @@
+airsim>=1.8.1
+numpy>=1.24.0
+opencv-python>=4.8.0
+msgpack-rpc-python>=0.4.1
+requests>=2.31
+PyYAML>=6.0
+google-auth>=2.17.0
+google-cloud-compute>=1.14.0

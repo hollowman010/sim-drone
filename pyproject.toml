@@ -25,6 +25,9 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/hollowman010/sim-drone"
 
+[project.scripts]
+simdrone = "src.main:main"
+
 [tool.setuptools]
 include-package-data = true
 
