@@ -1,6 +1,6 @@
 """
 Drone Vision AirSim Simulation Project
+Makes 'src' a package so imports work properly.
 """
 
-__version__ = "1.0.0"
-__author__ = "Drone Vision Team"
+__version__ = "0.1.0"  # Match pyproject.toml

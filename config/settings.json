@@ -1,6 +1,6 @@
 {
   "airsim": {
-    "ip": "127.0.0.1",
+    "host": "127.0.0.1",
     "port": 41451,
     "vehicle_name": "Drone1",
     "timeout_sec": 30
@@ -8,7 +8,9 @@
   "drone": {
     "takeoff_height": 3.5,
     "cruise_speed": 3.0,
-    "hover_timeout": 10
+    "hover_timeout": 10,
+    "max_speed": 10.0,
+    "safety_distance": 5.0
   },
   "mission": {
     "mode": "patrol",
@@ -18,11 +20,18 @@
       [5.0, 5.0, -3.5],
       [0.0, 5.0, -3.5]
     ],
-    "loops": 1
+    "loops": 1,
+    "max_duration": 1800,
+    "waypoint_tolerance": 2.0
   },
   "vision": {
     "enabled": true,
     "camera_name": "0",
-    "resize": [640, 360]
+    "resize": [640, 360],
+    "min_object_area": 100
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "drone_vision.log"
   }
 }

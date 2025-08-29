@@ -17,17 +17,15 @@ help:  ## Show this help
 venv:  ## Create virtual environment
 	$(PY) -m venv $(VENV)
 
-install: venv  ## Install dependencies and register package
+install: venv  ## Install dependencies
 	$(PIP) install -U pip
-	# Install deps (requirements) and register the package (editable)
-	$(PIP) install -r requirements.dev.txt
-	$(PIP) install -e .
+	$(PIP) install -r requirements.txt
 
 settings:  ## Copy AirSim settings to user directory
 	mkdir -p $$HOME/Documents/AirSim
-	# If your repo config exists, copy it; ignore errors if not present
-	cp -f config/settings.json $$HOME/Documents/AirSim/settings.json 2>/dev/null || true
-	@echo "✅ AirSim settings copied"
+	# Copy the correct AirSim server config (not the app config)
+	cp -f scripts/quick_settings.json $$HOME/Documents/AirSim/settings.json 2>/dev/null || true
+	@echo "✅ AirSim server settings copied"
 
 fmt:  ## Format code with black and ruff
 	$(PIP) install -q black ruff || true
@@ -54,10 +52,10 @@ smoke: install settings  ## Quick smoke test (takeoff/hover/land)
 	$(PYBIN) scripts/airsim_takeoff.py
 
 sim: install settings  ## Run full simulation with real AirSim
-	$(PYBIN) -m sim_drone --mode=live
+	cd src && $(PYBIN) main.py --mode=live
 
 demo: install  ## Run demo mode (no AirSim needed)
-	$(PYBIN) -m sim_drone --mode=demo
+	cd src && $(PYBIN) main.py --mode=demo
 
 # ----- gcp helpers -----
 .PHONY: up tunnel down status

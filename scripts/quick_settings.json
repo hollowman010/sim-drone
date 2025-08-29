@@ -1,8 +1,10 @@
 {
   "SettingsVersion": 1.2,
   "SimMode": "Multirotor",
+  "ClockSpeed": 1.0,
+  "RpcEnabled": true,
+  "RpcPort": 41451,
   "LocalHostIp": "127.0.0.1",
-  "ApiServerPort": 41451,
   "ViewMode": "FlyWithMe",
   "Recording": { "Enabled": false },
   "Vehicles": {
