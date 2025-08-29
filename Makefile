@@ -52,10 +52,10 @@ smoke: install settings  ## Quick smoke test (takeoff/hover/land)
 	$(PYBIN) scripts/airsim_takeoff.py
 
 sim: install settings  ## Run full simulation with real AirSim
-	cd src && $(PYBIN) main.py --mode=live
+	$(PYBIN) -m sim_drone
 
 demo: install  ## Run demo mode (no AirSim needed)
-	cd src && $(PYBIN) main.py --mode=demo
+	$(PYBIN) -m sim_drone
 
 # ----- gcp helpers -----
 .PHONY: up tunnel down status
@@ -64,7 +64,7 @@ up:  ## Start GCP VM and VNC
 	@echo "🚀 Starting VM and VNC..."
 	gcloud compute instances start $(INSTANCE) --zone=$(ZONE)
 	@echo "⏳ Waiting for SSH to be ready..."
-	@for i in {1..12}; do \
+u	@for i in {1..12}; do \
 		if gcloud compute ssh $(INSTANCE) --zone=$(ZONE) --command "echo SSH ready" >/dev/null 2>&1; then \
 			echo "✓ SSH is ready after $$((i*5)) seconds"; \
 			break; \

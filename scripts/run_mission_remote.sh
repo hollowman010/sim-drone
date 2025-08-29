@@ -42,7 +42,7 @@ gcloud compute ssh ${GPU_VM_NAME} --zone=${GCP_ZONE} --command "
     
     echo '🚁 Starting drone mission...'
     cd ~
-    python3 src/main.py
+    python3 -m sim_drone
 "
 
 echo ""

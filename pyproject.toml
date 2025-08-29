@@ -26,12 +26,11 @@ dependencies = [
 Homepage = "https://github.com/hollowman010/sim-drone"
 
 [project.scripts]
-simdrone = "src.main:main"
+simdrone = "sim_drone.main:main"
 
 [tool.setuptools]
 include-package-data = true
 
-# We keep your existing 'src' package AND add a tiny wrapper 'sim_drone'
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["src*", "sim_drone*"]
+where = ["src"]
+include = ["sim_drone*"]

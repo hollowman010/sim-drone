@@ -6,11 +6,10 @@ Runs entirely on GCP VM with AirSim.
 from __future__ import annotations
 import os, sys
 
-# Make "python src/main.py" work even if not installed
-sys.path.append(os.path.dirname(__file__))
+# Remove this since we're using proper package imports now
 
-from flight_control import FlightController, FlightConfig
-from mission_logic import MissionPlanner, MissionConfig
+from sim_drone.flight_control import FlightController, FlightConfig
+from sim_drone.mission_logic import MissionPlanner, MissionConfig
 
 
 def main() -> int:

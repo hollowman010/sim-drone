@@ -6,7 +6,7 @@ Simplified computer vision for basic object detection.
 import cv2
 import numpy as np
 from typing import Dict, Any, List, Tuple
-from utils.logger import get_logger
+from sim_drone.utils.logger import get_logger
 
 
 class VisionProcessor:

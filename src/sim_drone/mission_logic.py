@@ -10,7 +10,7 @@ import os
 import time
 import pathlib
 
-from flight_control import FlightController, FlightConfig
+from sim_drone.flight_control import FlightController, FlightConfig
 
 # Lazy import inside methods to avoid hard fail if cv2/airsim not installed
 # until we actually run with vision/camera.
@@ -70,7 +70,7 @@ class MissionPlanner:
         if not self.cfg.vision_enabled:
             return
         import cv2
-        from vision_targeting import VisionProcessor
+        from sim_drone.vision_targeting import VisionProcessor
 
         frame = self._get_bgr_frame()
         if frame is None:
