@@ -1,36 +1,41 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=75", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "sim-drone"
 version = "0.1.0"
-description = "Cloud-based AirSim drone simulation and control"
+description = "Cloud-based AirSim drone simulation + vision"
 readme = "README.md"
-requires-python = ">=3.8"
-authors = [{ name = "Medi Monam" }]
+requires-python = ">=3.10"
+authors = [{ name = "Your Name" }]
+license = { text = "MIT" }
 
-# Keep these aligned with requirements.txt
 dependencies = [
-  "airsim>=1.8.1",
-  "numpy>=1.24.0",
-  "opencv-python>=4.8.0",
-  "msgpack-rpc-python>=0.4.1",
-  "requests>=2.31",
-  "PyYAML>=6.0",
+  "airsim==1.8.1",
+  "opencv-python-headless>=4.8.0",
+  "numpy>=1.24,<2.0",
+  "msgpack-rpc-python",
+  "requests",
+  "PyYAML",
   "google-auth>=2.17.0",
-  "google-cloud-compute>=1.14.0"
+  "google-cloud-compute>=1.16.1",
+  "loguru>=0.7.0"
 ]
 
-[project.urls]
-Homepage = "https://github.com/hollowman010/sim-drone"
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "mypy", "types-PyYAML"]
 
 [project.scripts]
-simdrone = "sim_drone.main:main"
+simdrone = "sim_drone.__main__:main"
 
 [tool.setuptools]
-include-package-data = true
+package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["sim_drone*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

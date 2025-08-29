@@ -64,9 +64,9 @@ up:  ## Start GCP VM and VNC
 	@echo "🚀 Starting VM and VNC..."
 	gcloud compute instances start $(INSTANCE) --zone=$(ZONE)
 	@echo "⏳ Waiting for SSH to be ready..."
-u	@for i in {1..12}; do \
+	@for i in 1 2 3 4 5 6 7 8 9 10 11 12; do \
 		if gcloud compute ssh $(INSTANCE) --zone=$(ZONE) --command "echo SSH ready" >/dev/null 2>&1; then \
-			echo "✓ SSH is ready after $$((i*5)) seconds"; \
+			echo "✓ SSH is ready after $$(expr $$i \* 5) seconds"; \
 			break; \
 		fi; \
 		echo "  Attempt $$i/12: SSH not ready, waiting 5s..."; \
